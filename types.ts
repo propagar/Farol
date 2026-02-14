@@ -24,6 +24,8 @@ export interface Task {
   priority?: Priority;
   googleCalendarEventId?: string;
   description?: string;
+  streak?: number;
+  lastCompletedDate?: string; // YYYY-MM-DD
 }
 
 export interface Category {

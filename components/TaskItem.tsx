@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Task, Category, Priority } from '../types';
 import CategoryPill from './CategoryPill';
 import PriorityPill from './PriorityPill';
-import { TrashIcon, ChevronDownIcon, PlusIcon, SparklesIcon, SpinnerIcon, ClockIcon } from './Icons';
+import { TrashIcon, ChevronDownIcon, PlusIcon, SparklesIcon, SpinnerIcon, ClockIcon, FireIcon } from './Icons';
 
 interface TaskItemProps {
     task: Task;
@@ -134,6 +134,21 @@ const TaskItem: React.FC<TaskItemProps> = ({
                     <span className={`ml-4 text-slate-700 dark:text-slate-300 truncate ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
                         {task.text}
                     </span>
+                    {task.isHabit && (
+                        <span 
+                            className={`ml-2 flex items-center gap-1 text-sm font-bold ${
+                                task.streak && task.streak > 0 ? 'text-orange-500' : 'text-slate-400'
+                            }`} 
+                            title={
+                                task.streak && task.streak > 0 
+                                    ? `Sequência de ${task.streak} dias` 
+                                    : 'Hábito diário: complete hoje para iniciar uma sequência!'
+                            }
+                        >
+                            <FireIcon className="w-4 h-4" />
+                            {task.streak && task.streak > 0 && <span>{task.streak}</span>}
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-4">
                      {dueDateInfo && !task.completed && (

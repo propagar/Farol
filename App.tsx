@@ -16,135 +16,30 @@ import { GoogleGenAI, FunctionDeclaration, Type, Content } from '@google/genai';
 
 const UNCATEGORIZED_ID = '0';
 
-const generateMockData = () => {
-    const transactions: Transaction[] = [];
-    const purchases: Purchase[] = [];
-    const investments: Investment[] = [];
-    
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    const investmentFunds = [
-        { id: 'if1', name: 'CDB 110% Inter', type: InvestmentType.CDB, yieldRate: 11.2, description: "CDB com liquidez diária." },
-        { id: 'if2', name: 'Tesouro Selic 2029', type: InvestmentType.RendaFixa, yieldRate: 10.5, description: "Título público federal." },
-        { id: 'if3', name: 'Bitcoin', type: InvestmentType.Cripto, description: "Criptomoeda descentralizada." },
-    ];
-
-    const mockSupermarketItems = [
-        { name: 'Frango', brand: 'Sadia', unitPrice: 18.90, unit: PurchaseItemUnit.Kilogram },
-        { name: 'Arroz', brand: 'Tio João', unitPrice: 28.00, unit: PurchaseItemUnit.Unit },
-        { name: 'Feijão', brand: 'Camil', unitPrice: 8.50, unit: PurchaseItemUnit.Unit },
-        { name: 'Leite Integral', brand: 'Italac', unitPrice: 4.50, unit: PurchaseItemUnit.Liter },
-        { name: 'Pão de Forma', brand: 'Wickbold', unitPrice: 7.20, unit: PurchaseItemUnit.Unit },
-        { name: 'Café', brand: 'Pilão', unitPrice: 15.00, unit: PurchaseItemUnit.Unit },
-        { name: 'Maçã', brand: '', unitPrice: 9.90, unit: PurchaseItemUnit.Kilogram },
-        { name: 'Banana', brand: '', unitPrice: 6.50, unit: PurchaseItemUnit.Kilogram },
-        { name: 'Refrigerante', brand: 'Coca-Cola', unitPrice: 9.00, unit: PurchaseItemUnit.Unit },
-        { name: 'Sabão em Pó', brand: 'Omo', unitPrice: 22.00, unit: PurchaseItemUnit.Unit },
-    ];
-
-    for (let i = 11; i >= 0; i--) {
-        const date = new Date(currentYear, currentMonth - i, 1);
-        const m = date.getMonth();
-        const y = date.getFullYear();
-
-        // Income
-        transactions.push({ id: `t_sal_${i}`, description: 'Salário', amount: 5000 + (Math.random() * 500), type: 'income', date: new Date(y, m, 5).toISOString().split('T')[0], profileId: 'p1', category: 'Salário' });
-        if (i % 3 === 0) {
-            transactions.push({ id: `t_freela_${i}`, description: 'Freelance Website', amount: 600 + (Math.random() * 400), type: 'income', date: new Date(y, m, 20).toISOString().split('T')[0], profileId: 'p1', category: 'Renda Extra' });
-        }
-        
-        // Supermarket Purchase
-        const purchaseItems1 = [];
-        let calculatedTotal1 = 0;
-        const numberOfItems = Math.floor(Math.random() * 5) + 3; // 3 to 7 items
-
-        for (let j = 0; j < numberOfItems; j++) {
-            const itemTemplate = mockSupermarketItems[Math.floor(Math.random() * mockSupermarketItems.length)];
-            const id = `item_${i}_${j}`;
-            let quantity = 1;
-            let weight: number | undefined = undefined;
-            let totalPrice = 0;
-
-            if (itemTemplate.unit === PurchaseItemUnit.Kilogram) {
-                quantity = parseFloat((Math.random() * 2 + 0.5).toFixed(2)); // 0.5kg to 2.5kg
-                weight = quantity;
-                totalPrice = quantity * itemTemplate.unitPrice;
-            } else if (itemTemplate.unit === PurchaseItemUnit.Liter) {
-                 quantity = Math.floor(Math.random() * 4) + 1; // 1 to 4 units
-                 totalPrice = quantity * itemTemplate.unitPrice;
-            } else {
-                quantity = Math.floor(Math.random() * 3) + 1; // 1 to 3 units
-                totalPrice = quantity * itemTemplate.unitPrice;
-            }
-
-            purchaseItems1.push({
-                id,
-                name: itemTemplate.name,
-                brand: itemTemplate.brand || undefined,
-                quantity,
-                unitPrice: itemTemplate.unitPrice,
-                totalPrice: parseFloat(totalPrice.toFixed(2)),
-                unit: itemTemplate.unit,
-                weight,
-            });
-            calculatedTotal1 += totalPrice;
-        }
-
-        const supermarketAmount1 = parseFloat(calculatedTotal1.toFixed(2));
-        const purchaseId1 = `pur_${i}_1`;
-        const supermarketDate1 = new Date(y, m, 7).toISOString().split('T')[0];
-        transactions.push({ id: `t_${purchaseId1}`, description: 'Compras de Supermercado', amount: supermarketAmount1, type: 'expense', date: supermarketDate1, profileId: 'p1', category: 'Alimentação', purchaseId: purchaseId1 });
-        purchases.push({ id: purchaseId1, storeName: 'Supermercado ABC', date: supermarketDate1, totalAmount: supermarketAmount1, items: purchaseItems1, transactionIds: [`t_${purchaseId1}`] });
-
-        // Online Purchase
-        const onlineAmount = parseFloat((50 + (Math.random() * 300)).toFixed(2));
-        const purchaseIdOnline = `pur_online_${i}`;
-        const onlineDate = new Date(y, m, 18).toISOString().split('T')[0];
-        const store = i % 2 === 0 ? "Amazon.com.br" : "Kabum!";
-        const category = i % 2 === 0 ? "Lazer" : "Eletrônicos";
-        transactions.push({ id: `t_${purchaseIdOnline}`, description: `Compra na ${store}`, amount: onlineAmount, type: 'expense', date: onlineDate, profileId: 'p1', category: category, purchaseId: purchaseIdOnline });
-        purchases.push({ id: purchaseIdOnline, storeName: store, date: onlineDate, totalAmount: onlineAmount, items: [{id: `item_online_${i}`, name: 'Produto Genérico', quantity: 1, unitPrice: onlineAmount, totalPrice: onlineAmount, unit: PurchaseItemUnit.Unit}], transactionIds: [`t_${purchaseIdOnline}`] });
-
-        // Investment every 3 months
-        if (i % 3 === 0) {
-            const invAmount = parseFloat((400 + (Math.random() * 200)).toFixed(2));
-            const fund = investmentFunds[i % investmentFunds.length];
-            const invDate = new Date(y, m, 25).toISOString().split('T')[0];
-            transactions.push({ id: `t_inv_${i}`, description: `Aplicação em ${fund.name}`, amount: invAmount, type: 'expense', date: invDate, profileId: 'p1', category: 'Investimentos' });
-            investments.push({ id: `inv_${i}`, fundId: fund.id, amount: invAmount, date: invDate, profileId: 'p1' });
-        }
-    }
-    return { transactions, purchases, investments };
-};
-
 const App: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     
     // Estados existentes...
     const [tasks, setTasks] = useState<Task[]>(() => {
         const savedTasks = localStorage.getItem('tasks');
-        return savedTasks ? JSON.parse(savedTasks) : [
-            { id: '1', text: 'Planejar a semana', categoryId: '1', completed: false, isHabit: false, checklist: [], priority: Priority.Medium },
-            { id: '2', text: 'Reunião de equipe às 10h', categoryId: '1', completed: false, isHabit: false, dueDate: new Date().toISOString().split('T')[0], checklist: [{id: 's1', text: 'Preparar apresentação', completed: false}], priority: Priority.High },
-            { id: '3', text: 'Ler 10 páginas de um livro', categoryId: '5', completed: false, isHabit: true, checklist: [] },
-            { id: '4', text: '30 minutos de exercício', categoryId: '4', completed: false, isHabit: true, checklist: [] },
-            { id: '5', text: 'Meditar por 5 minutos', categoryId: '3', completed: false, isHabit: true, checklist: [] },
-        ];
+        return savedTasks ? JSON.parse(savedTasks) : [];
     });
     
     const [completedTasks, setCompletedTasks] = useState<Task[]>(() => {
         const saved = localStorage.getItem('completedTasks');
-        return saved ? JSON.parse(saved) : [
-             { id: 'c1', text: 'Entregar relatório', categoryId: '1', completed: true, isHabit: false, checklist: [], completedAt: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(), priority: Priority.High },
-             { id: 'c2', text: 'Comprar mantimentos', categoryId: '6', completed: true, isHabit: false, checklist: [], completedAt: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString() },
-        ];
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [categories, setCategories] = useState<Category[]>(() => {
         const savedCategories = localStorage.getItem('categories');
-        const defaultCategories = [
+        if (savedCategories) {
+            const parsed = JSON.parse(savedCategories);
+            if (!parsed.find((c: Category) => c.id === UNCATEGORIZED_ID)) {
+                return [{ id: UNCATEGORIZED_ID, name: 'Sem Categoria', color: 'bg-slate-500' }, ...parsed];
+            }
+            return parsed;
+        }
+        return [
             { id: UNCATEGORIZED_ID, name: 'Sem Categoria', color: 'bg-slate-500' },
             { id: '1', name: 'Trabalho', color: 'bg-sky-500' },
             { id: '2', name: 'Estudo', color: 'bg-amber-500' },
@@ -153,33 +48,16 @@ const App: React.FC = () => {
             { id: '5', name: 'Leitura', color: 'bg-rose-500' },
             { id: '6', name: 'Vida Pessoal', color: 'bg-pink-500' },
         ];
-         if (savedCategories) {
-            const parsed = JSON.parse(savedCategories);
-            if (!parsed.find((c: Category) => c.id === UNCATEGORIZED_ID)) {
-                return [defaultCategories[0], ...parsed];
-            }
-            return parsed;
-        }
-        return defaultCategories;
     });
 
     const [majorGoals, setMajorGoals] = useState<MajorGoal[]>(() => {
         const savedMajorGoals = localStorage.getItem('majorGoals');
-        return savedMajorGoals ? JSON.parse(savedMajorGoals) : [
-            { id: 'm1', text: 'Lançar novo projeto pessoal' },
-            { id: 'm2', text: 'Ficar em forma para o verão' },
-        ];
+        return savedMajorGoals ? JSON.parse(savedMajorGoals) : [];
     });
 
     const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoal[]>(() => {
         const savedGoals = localStorage.getItem('weeklyGoals');
-        return savedGoals ? JSON.parse(savedGoals) : [
-            { id: 'g1', text: 'Finalizar o relatório trimestral', completed: false, majorGoalId: null },
-            { id: 'g2', text: 'Ir à academia 3 vezes', completed: true, majorGoalId: 'm2' },
-            { id: 'g3', text: 'Começar um novo curso online', completed: false, majorGoalId: null },
-            { id: 'g4', text: 'Definir o escopo do projeto', completed: true, majorGoalId: 'm1' },
-            { id: 'g5', text: 'Criar protótipo inicial', completed: false, majorGoalId: 'm1' },
-        ];
+        return savedGoals ? JSON.parse(savedGoals) : [];
     });
 
     const [theme, setTheme] = useState(() => {
@@ -198,8 +76,8 @@ const App: React.FC = () => {
     const [accountInfo, setAccountInfo] = useState<AccountInfo>(() => {
         const saved = localStorage.getItem('accountInfo');
         return saved ? JSON.parse(saved) : {
-            fullName: 'Yuri Welter',
-            email: 'admin@propagasales.com',
+            fullName: 'Usuário',
+            email: '',
             phone: '',
             address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' },
             cpf: '',
@@ -216,33 +94,27 @@ const App: React.FC = () => {
     // Estados para o Farol Finance
     const [profiles, setProfiles] = useState<Profile[]>(() => {
         const saved = localStorage.getItem('financeProfiles');
-        return saved ? JSON.parse(saved) : [{ id: 'p1', name: 'Yuri Welter', type: 'CPF' }];
+        return saved ? JSON.parse(saved) : [{ id: 'p1', name: 'Perfil Principal', type: 'CPF' }];
     });
     
     const [transactions, setTransactions] = useState<Transaction[]>(() => {
         const saved = localStorage.getItem('financeTransactions');
-        return saved ? JSON.parse(saved) : generateMockData().transactions;
+        return saved ? JSON.parse(saved) : [];
     });
     
     const [purchases, setPurchases] = useState<Purchase[]>(() => {
         const saved = localStorage.getItem('purchases');
-        return saved ? JSON.parse(saved) : generateMockData().purchases;
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
         const saved = localStorage.getItem('financeBankAccounts');
-        return saved ? JSON.parse(saved) : [
-            { id: 'b1', name: 'NuBank', type: 'Cartão de Crédito', profileId: 'p1', creditLimit: 5000, creditUsed: 1500 },
-            { id: 'b2', name: 'Itaú', type: 'Conta Corrente', profileId: 'p1'}
-        ];
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [spendingGoals, setSpendingGoals] = useState<SpendingGoal[]>(() => {
         const saved = localStorage.getItem('spendingGoals');
-        return saved ? JSON.parse(saved) : [
-            { id: 'sg1', category: 'Alimentação', limit: 800, profileId: 'p1' },
-            { id: 'sg2', category: 'Lazer', limit: 400, profileId: 'p1' },
-        ];
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [earningGoals, setEarningGoals] = useState<EarningGoal[]>(() => {
@@ -252,24 +124,17 @@ const App: React.FC = () => {
     
     const [investmentFunds, setInvestmentFunds] = useState<InvestmentFund[]>(() => {
         const saved = localStorage.getItem('investmentFunds');
-        return saved ? JSON.parse(saved) : [
-            { id: 'if1', name: 'CDB 110% Inter', type: InvestmentType.CDB, yieldRate: 11.2, description: "CDB com liquidez diária." },
-            { id: 'if2', name: 'Tesouro Selic 2029', type: InvestmentType.RendaFixa, yieldRate: 10.5, description: "Título público federal." },
-            { id: 'if3', name: 'Bitcoin', type: InvestmentType.Cripto, description: "Criptomoeda descentralizada." },
-        ];
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [investments, setInvestments] = useState<Investment[]>(() => {
         const saved = localStorage.getItem('investments');
-        return saved ? JSON.parse(saved) : generateMockData().investments;
+        return saved ? JSON.parse(saved) : [];
     });
     
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>(() => {
         const saved = localStorage.getItem('recurringExpenses');
-        return saved ? JSON.parse(saved) : [
-            { id: 're1', description: 'Assinatura Netflix', amount: 39.90, category: 'Lazer', profileId: 'p1', frequency: 'monthly', startDate: '2023-10-15', dayOfMonth: 15 },
-            { id: 're2', description: 'Plano de Saúde', amount: 450.00, category: 'Saúde', profileId: 'p1', frequency: 'monthly', startDate: '2023-10-10', dayOfMonth: 10 },
-        ];
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -497,7 +362,24 @@ const App: React.FC = () => {
     const handleToggleTask = (taskId: string) => {
         const activeTask = tasks.find(t => t.id === taskId);
         if (activeTask) {
-            const taskToComplete = { ...activeTask, completed: true, completedAt: new Date().toISOString() };
+            let updatedTask = { ...activeTask };
+
+            if (updatedTask.isHabit) {
+                const today = new Date().toISOString().split('T')[0];
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                const yesterdayString = yesterday.toISOString().split('T')[0];
+
+                const currentStreak = updatedTask.streak || 0;
+                if (updatedTask.lastCompletedDate === yesterdayString) {
+                    updatedTask.streak = currentStreak + 1;
+                } else {
+                    updatedTask.streak = 1;
+                }
+                updatedTask.lastCompletedDate = today;
+            }
+
+            const taskToComplete = { ...updatedTask, completed: true, completedAt: new Date().toISOString() };
             setTasks(tasks.filter(t => t.id !== taskId));
             setCompletedTasks(prev => [taskToComplete, ...prev]);
             return;
@@ -1404,8 +1286,33 @@ const App: React.FC = () => {
     useEffect(() => {
         const lastReset = localStorage.getItem('lastHabitReset');
         const today = new Date().toISOString().split('T')[0];
+        
         if (lastReset !== today) {
-            setTasks(prevTasks => prevTasks.map(task => task.isHabit ? { ...task, completed: false } : task));
+            // 1. Habits that were NOT completed yesterday (they are in the `tasks` list).
+            const updatedTasks = tasks.map(task => {
+                if (task.isHabit) {
+                    // Streak broken.
+                    return { ...task, streak: 0 };
+                }
+                return task;
+            });
+    
+            // 2. Habits that WERE completed yesterday (they are in `completedTasks`).
+            const habitsToReactivate = completedTasks.filter(task => task.isHabit);
+            const otherCompletedTasks = completedTasks.filter(task => !task.isHabit);
+    
+            // Move them back to the main list for the new day, keeping their streak.
+            const reactivatedHabits = habitsToReactivate.map(habit => {
+                const { completedAt, ...rest } = habit;
+                return {
+                    ...rest,
+                    completed: false,
+                };
+            });
+    
+            setTasks([...updatedTasks, ...reactivatedHabits]);
+            setCompletedTasks(otherCompletedTasks);
+    
             localStorage.setItem('lastHabitReset', today);
         }
     }, []);
@@ -1599,7 +1506,7 @@ const App: React.FC = () => {
                 onCloseMobileMenu={() => setIsMobileMenuOpen(false)} 
                 onReorderCategories={handleReorderCategories} 
                 appColor={appColor}
-                userName={accountInfo.fullName || 'Yuri Welter'}
+                userName={accountInfo.fullName || 'Usuário'}
                 userProfilePicture={accountInfo.profilePicture}
                 onLogout={handleLogout}
             />

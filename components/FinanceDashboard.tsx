@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Profile, Transaction, BankAccount, Purchase, PurchaseItemUnit, SpendingGoal, Investment, InvestmentFund, InvestmentType, RecurringExpense, Category, EarningGoal, GoalPeriod } from '../types';
 import { UsersIcon, PlusIcon, ArrowUpIcon, ArrowDownIcon, ScaleIcon, TrashIcon, ClipboardListIcon, CreditCardIcon, PencilIcon, ShoppingBagIcon, ChevronDownIcon, ChartPieIcon, BanknotesIcon, ChartBarIcon, LayoutDashboardIcon, RepeatIcon, AcademicCapIcon } from './Icons';
@@ -249,7 +250,7 @@ const ProfileAccordionItem: React.FC<{
                             <div className="space-y-3">
                                 {profileSpendingGoals.map(goal => {
                                     const currentSpending = transactions.filter(t => t.category === goal.category && t.type === 'expense' && new Date(t.date).getMonth() === new Date().getMonth()).reduce((sum, t) => sum + t.amount, 0);
-                                    // FIX: Ensure goal.limit is treated as a number to prevent runtime errors.
+                                    {/* FIX: The goal.limit property can be a string, causing a TypeError. Convert to number for calculations. */}
                                     const goalLimit = Number(goal.limit) || 0;
                                     const progress = goalLimit > 0 ? Math.min((currentSpending / goalLimit) * 100, 100) : 0;
                                     const progressColor = progress > 90 ? 'bg-red-500' : progress > 75 ? 'bg-amber-500' : 'bg-indigo-600';
@@ -648,6 +649,7 @@ const FinanceDashboard: React.FC<FinanceDashboardProps> = ({
                                 <div className="space-y-4">
                                     {spendingGoals.map(goal => {
                                         const currentSpending = spendingByCategory.find(c => c.label === goal.category)?.value || 0;
+                                        {/* FIX: The goal.limit property can be a string, causing a TypeError. Convert to number for calculations. */}
                                         const goalLimit = Number(goal.limit) || 0;
                                         const progress = goalLimit > 0 ? Math.min((currentSpending / goalLimit) * 100, 100) : 0;
                                         const isOver = goalLimit > 0 && currentSpending > goalLimit;
