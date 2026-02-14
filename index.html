@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Farol</title>
+    <script>
+        // Script para evitar FOUC (Flash of Unstyled Content) do tema.
+        // Aplica a classe 'dark' no HTML antes da página ser renderizada.
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Define a configuração do Tailwind para usar a estratégia de classe para o modo escuro.
+        // Este script deve vir DEPOIS do script do Tailwind CDN.
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://esm.sh/@google/genai",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 antialiased">
+    <div id="root"></div>
+    <!-- Safelist for Tailwind JIT CDN -->
+    <div class="hidden">
+        <span class="bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 ring-indigo-500 text-indigo-600 bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 border-indigo-500"></span>
+        <span class="bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300 ring-sky-500 text-sky-600 bg-sky-600 hover:bg-sky-700 focus:ring-sky-500 border-sky-500"></span>
+        <span class="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 ring-emerald-500 text-emerald-600 bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 border-emerald-500"></span>
+        <span class="bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 ring-rose-500 text-rose-600 bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 border-rose-500"></span>
+        <span class="bg-violet-100 text-violet-700 dark:bg-violet-500/20 dark:text-violet-300 ring-violet-500 text-violet-600 bg-violet-600 hover:bg-violet-700 focus:ring-violet-500 border-violet-500"></span>
+    </div>
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

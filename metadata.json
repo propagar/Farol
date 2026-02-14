@@ -1,0 +1,8 @@
+{
+  "name": "Farol",
+  "description": "Um aplicativo de tarefas e hábitos com um farol para guiar sua produtividade. Organize seu dia, construa rotinas e alcance metas com temas claro e escuro.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
