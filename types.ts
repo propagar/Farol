@@ -48,13 +48,23 @@ export interface WeeklyGoal {
 
 export enum View {
   Today = 'Hoje',
-  Routine = 'Rotina Diária',
+  Habits = 'Hábitos',
   WeeklyGoals = 'Metas Semanais',
   Category = 'Categoria',
   History = 'Histórico',
   Finance = 'Farol Finance',
   Settings = 'Configurações',
   Recurring = 'Recorrências',
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  startTime?: string; // HH:MM
+  endTime?: string; // HH:MM
+  description?: string;
+  color: string; // Tailwind bg color
 }
 
 export enum PurchaseItemUnit {
@@ -247,4 +257,11 @@ export interface AccountInfo {
     lifeSummary: string;
     socialLinks: SocialLinks;
     profilePicture?: string; // Data URL for the image
+}
+
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  profilePicture?: string;
 }

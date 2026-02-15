@@ -1,6 +1,7 @@
 
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, Category, WeeklyGoal, Subtask, View, MajorGoal, ChatMessage, Profile, Transaction, Priority, BankAccount, PaymentMethod, AccountInfo, PendingPurchase, Purchase, PurchaseItemUnit, SpendingGoal, Investment, InvestmentFund, InvestmentType, PendingInvestment, RecurringExpense, EarningGoal, GoalPeriod } from './types';
+import { Task, Category, WeeklyGoal, Subtask, View, MajorGoal, ChatMessage, Profile, Transaction, Priority, BankAccount, PaymentMethod, AccountInfo, PendingPurchase, Purchase, PurchaseItemUnit, SpendingGoal, Investment, InvestmentFund, InvestmentType, PendingInvestment, RecurringExpense, EarningGoal, GoalPeriod, CalendarEvent } from './types';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import TaskItem from './components/TaskItem';
@@ -11,6 +12,7 @@ import FinanceDashboard from './components/FinanceDashboard';
 import FloatingAIAssistant from './components/FloatingAIAssistant';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
+import TodayDashboard from './components/TodayDashboard';
 import { PlusIcon, TargetIcon, TrashIcon, FlagIcon } from './components/Icons';
 import { GoogleGenAI, FunctionDeclaration, Type, Content } from '@google/genai';
 
@@ -58,6 +60,11 @@ const App: React.FC = () => {
     const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoal[]>(() => {
         const savedGoals = localStorage.getItem('weeklyGoals');
         return savedGoals ? JSON.parse(savedGoals) : [];
+    });
+    
+    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
+        const saved = localStorage.getItem('calendarEvents');
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [theme, setTheme] = useState(() => {
@@ -147,6 +154,7 @@ const App: React.FC = () => {
     useEffect(() => { localStorage.setItem('assistantName', assistantName); }, [assistantName]);
     useEffect(() => { localStorage.setItem('assistantInstruction', assistantInstruction); }, [assistantInstruction]);
     useEffect(() => { localStorage.setItem('accountInfo', JSON.stringify(accountInfo)); }, [accountInfo]);
+    useEffect(() => { localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents)); }, [calendarEvents]);
 
     useEffect(() => { localStorage.setItem('financeProfiles', JSON.stringify(profiles)); }, [profiles]);
     useEffect(() => { localStorage.setItem('financeTransactions', JSON.stringify(transactions)); }, [transactions]);
@@ -514,6 +522,27 @@ const App: React.FC = () => {
     const handleDeleteMajorGoal = (goalId: string) => {
         setWeeklyGoals(weeklyGoals.map(wg => wg.majorGoalId === goalId ? { ...wg, majorGoalId: null } : wg));
         setMajorGoals(majorGoals.filter(goal => goal.id !== goalId));
+    };
+
+    const handleAddCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => {
+        const newEvent: CalendarEvent = {
+            id: `cal-${Date.now()}`,
+            ...event,
+        };
+        setCalendarEvents(prev => [...prev, newEvent]);
+        return `Evento "${event.title}" adicionado ao calendário.`;
+    };
+
+    const handleUpdateCalendarEvent = (eventId: string, updates: Partial<Omit<CalendarEvent, 'id'>>) => {
+        let eventTitle = '';
+        setCalendarEvents(prev => prev.map(e => {
+            if (e.id === eventId) {
+                eventTitle = updates.title || e.title;
+                return { ...e, ...updates };
+            }
+            return e;
+        }));
+        return `Evento "${eventTitle}" atualizado.`;
     };
 
     const formatCurrency = (value: number) => {
@@ -1050,6 +1079,39 @@ const App: React.FC = () => {
                     required: ['earningGoalDescription'],
                 }
             };
+            
+            const createCalendarEventDeclaration: FunctionDeclaration = {
+                name: 'createCalendarEvent',
+                description: 'Cria um novo evento no calendário do usuário.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING, description: 'O título do evento.' },
+                        date: { type: Type.STRING, description: 'A data do evento no formato AAAA-MM-DD.' },
+                        startTime: { type: Type.STRING, description: 'A hora de início no formato HH:MM (24h).' },
+                        endTime: { type: Type.STRING, description: 'A hora de término no formato HH:MM (24h).' },
+                        description: { type: Type.STRING, description: 'Uma descrição ou notas para o evento.' },
+                    },
+                    required: ['title', 'date'],
+                },
+            };
+
+            const updateCalendarEventDeclaration: FunctionDeclaration = {
+                name: 'updateCalendarEvent',
+                description: 'Atualiza um evento existente no calendário.',
+                parameters: {
+                    type: Type.OBJECT,
+                    properties: {
+                        eventTitleToFind: { type: Type.STRING, description: 'O título do evento que precisa ser atualizado.' },
+                        newTitle: { type: Type.STRING, description: 'O novo título para o evento.' },
+                        newDate: { type: Type.STRING, description: 'A nova data para o evento (AAAA-MM-DD).' },
+                        newStartTime: { type: Type.STRING, description: 'A nova hora de início (HH:MM).' },
+                        newEndTime: { type: Type.STRING, description: 'A nova hora de término (HH:MM).' },
+                        newDescription: { type: Type.STRING, description: 'A nova descrição.' },
+                    },
+                    required: ['eventTitleToFind'],
+                },
+            };
 
 
             const historyContents: Content[] = history
@@ -1080,7 +1142,7 @@ const App: React.FC = () => {
 
             let config: any = {
                 systemInstruction: baseSystemInstruction,
-                tools: [{ functionDeclarations: [proposePurchaseDeclaration, proposeTransactionDeclaration, createTaskDeclaration, updateTaskDeclaration, createWeeklyGoalDeclaration, proposeInvestmentDeclaration, createRecurringExpenseDeclaration, completeTaskDeclaration, createEarningGoalDeclaration, createSpendingGoalDeclaration, linkFinancialGoalToTasksDeclaration] }],
+                tools: [{ functionDeclarations: [proposePurchaseDeclaration, proposeTransactionDeclaration, createTaskDeclaration, updateTaskDeclaration, createWeeklyGoalDeclaration, proposeInvestmentDeclaration, createRecurringExpenseDeclaration, completeTaskDeclaration, createEarningGoalDeclaration, createSpendingGoalDeclaration, linkFinancialGoalToTasksDeclaration, createCalendarEventDeclaration, updateCalendarEventDeclaration] }],
             };
 
             const webSearchKeywords = ['notícias', 'preço de', 'quem ganhou', 'o que aconteceu', 'hoje'];
@@ -1181,6 +1243,19 @@ const App: React.FC = () => {
                 const { earningGoalDescription } = call.args;
                 const resultText = handleLinkFinancialGoalToTasks(earningGoalDescription as string);
                 setChatMessages(prev => [...prev, { role: 'model', text: resultText }]);
+            } else if (call?.name === 'createCalendarEvent') {
+                const event = call.args as Omit<CalendarEvent, 'id' | 'color'>;
+                const resultText = handleAddCalendarEvent({ ...event, color: 'bg-indigo-500' });
+                setChatMessages(prev => [...prev, { role: 'model', text: resultText }]);
+            } else if (call?.name === 'updateCalendarEvent') {
+                const { eventTitleToFind, ...updates } = call.args;
+                const eventToUpdate = calendarEvents.find(e => e.title.toLowerCase().includes((eventTitleToFind as string).toLowerCase()));
+                if (eventToUpdate) {
+                    const resultText = handleUpdateCalendarEvent(eventToUpdate.id, updates);
+                    setChatMessages(prev => [...prev, { role: 'model', text: resultText }]);
+                } else {
+                    setChatMessages(prev => [...prev, { role: 'model', text: `Não encontrei um evento com o título parecido com "${eventTitleToFind}".` }]);
+                }
             } else if (isImageGeneration || imageEditing) {
                 const imagePart = response.candidates?.[0]?.content.parts.find(p => p.inlineData);
                 if (imagePart?.inlineData) {
@@ -1258,7 +1333,8 @@ const App: React.FC = () => {
             case View.Today:
                 baseTasks = tasks.filter(task => !task.isHabit && (task.dueDate === today || !task.dueDate));
                 break;
-            case View.Routine:
+// fix: Replaced View.Routine with View.Habits as 'Routine' does not exist in the enum.
+            case View.Habits:
                 baseTasks = tasks.filter(task => task.isHabit);
                 break;
             case View.Category:
@@ -1268,7 +1344,8 @@ const App: React.FC = () => {
                 return [];
         }
 
-        if (priorityFilter === 'Todas' || currentView === View.Routine) {
+// fix: Replaced View.Routine with View.Habits as 'Routine' does not exist in the enum.
+        if (priorityFilter === 'Todas' || currentView === View.Habits) {
             return baseTasks;
         }
         return baseTasks.filter(task => (task.priority || Priority.None) === priorityFilter);
@@ -1476,17 +1553,31 @@ const App: React.FC = () => {
             
             default:
                 return (
-                    <div className="space-y-4">
-                        {filteredTasks.length > 0 ? filteredTasks.map(task => (
-                            <TaskItem key={task.id} task={task} category={categories.find(c => c.id === task.categoryId)} categories={categories} onToggle={handleToggleTask} onDelete={handleDeleteTask} onToggleSubtask={handleToggleSubtask} onAddSubtask={handleAddSubtask} onAddMultipleSubtasks={handleAddMultipleSubtasks} onUpdateDueDate={handleUpdateTaskDueDate} onUpdateCategory={handleUpdateTaskCategory} onUpdatePriority={handleUpdateTaskPriority} onUpdateDescription={handleUpdateTaskDescription} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isBeingDraggedOver={dragOverTaskId === task.id} appColor={appColor} />
-                        )) : (
-                            <div className="text-center py-10 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                                <div className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500"><TargetIcon/></div>
-                                <h3 className="mt-2 text-lg font-medium text-slate-900 dark:text-slate-200">Tudo limpo por aqui!</h3>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Adicione uma nova tarefa para começar.</p>
-                            </div>
+                    <>
+                        <div className="space-y-4">
+                            {filteredTasks.length > 0 ? filteredTasks.map(task => (
+                                <TaskItem key={task.id} task={task} category={categories.find(c => c.id === task.categoryId)} categories={categories} onToggle={handleToggleTask} onDelete={handleDeleteTask} onToggleSubtask={handleToggleSubtask} onAddSubtask={handleAddSubtask} onAddMultipleSubtasks={handleAddMultipleSubtasks} onUpdateDueDate={handleUpdateTaskDueDate} onUpdateCategory={handleUpdateTaskCategory} onUpdatePriority={handleUpdateTaskPriority} onUpdateDescription={handleUpdateTaskDescription} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isBeingDraggedOver={dragOverTaskId === task.id} appColor={appColor} />
+                            )) : (
+                                <div className="text-center py-10 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                    <div className="mx-auto h-12 w-12 text-slate-400 dark:text-slate-500"><TargetIcon/></div>
+                                    <h3 className="mt-2 text-lg font-medium text-slate-900 dark:text-slate-200">Tudo limpo por aqui!</h3>
+                                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Adicione uma nova tarefa para começar.</p>
+                                </div>
+                            )}
+                        </div>
+                        {currentView === View.Today && (
+                             <TodayDashboard
+                                tasks={tasks}
+                                completedTasks={completedTasks}
+                                weeklyGoals={weeklyGoals}
+                                calendarEvents={calendarEvents}
+                                onAddCalendarEvent={(event) => handleAddCalendarEvent(event)}
+                                isGoogleCalendarAuthorized={isGoogleCalendarAuthorized}
+                                onConnectGoogleCalendar={handleConnectGoogleCalendar}
+                                appColor={appColor}
+                            />
                         )}
-                    </div>
+                    </>
                 );
         }
     };

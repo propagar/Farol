@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Category, View } from '../types';
 import { HomeIcon, ListIcon, CalendarIcon, LighthouseIcon, CogIcon, ArchiveBoxIcon, ChevronDoubleLeftIcon, ChevronDoubleRightIcon, DragHandleIcon, PlusIcon, LighthouseMoneyIcon, ChevronDownIcon, UserCircleIcon, LogoutIcon } from './Icons';
@@ -144,7 +145,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <nav className="flex-1 overflow-y-auto overflow-x-hidden">
                     <div className="space-y-2 mb-8">
                         <NavItem icon={<HomeIcon />} label="Hoje" isActive={currentView === View.Today} onClick={() => handleNavigation(View.Today)} />
-                        <NavItem icon={<ListIcon />} label="Rotina Diária" isActive={currentView === View.Routine} onClick={() => handleNavigation(View.Routine)} />
+{/* fix: Replaced View.Routine with View.Habits as 'Routine' does not exist in the enum. */}
+                        <NavItem icon={<ListIcon />} label="Rotina Diária" isActive={currentView === View.Habits} onClick={() => handleNavigation(View.Habits)} />
                         <NavItem icon={<CalendarIcon />} label="Metas Semanais" isActive={currentView === View.WeeklyGoals} onClick={() => handleNavigation(View.WeeklyGoals)} />
                         <NavItem icon={<ArchiveBoxIcon />} label="Histórico" isActive={currentView === View.History} onClick={() => handleNavigation(View.History)} />
                         <div className="px-4 my-4">
