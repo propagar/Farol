@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getPool } from './_lib/db.js';
+import { getPool, verifyDatabaseConnection } from './_lib/db.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -40,7 +40,19 @@ export const handler = async (event) => {
     return { statusCode: 201, headers: jsonHeaders, body: JSON.stringify({ ok: true }) };
   } catch (error) {
     if (error.code === '23505') {
-      return { statusCode: 409, headers: jsonHeaders, body: JSON.stringify({ error: 'Email already registered' }) };
+      return { statusCode: 409, headers: jsonHeaders, body: JSON.stringify({ error: 'Este e-mail já está cadastrado.' }) };
+    }
+
+    if (error.code?.startsWith('08')) {
+      try {
+        await verifyDatabaseConnection();
+      } catch {
+        return {
+          statusCode: 503,
+          headers: jsonHeaders,
+          body: JSON.stringify({ error: 'Não foi possível conectar ao banco de dados. Tente novamente em instantes.' })
+        };
+      }
     }
 
     return { statusCode: 500, headers: jsonHeaders, body: JSON.stringify({ error: 'Unable to register user' }) };
