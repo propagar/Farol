@@ -11,38 +11,68 @@ const parseBody = (body) => {
   }
 };
 
+const buildResponse = (statusCode, message, extra = {}) => ({
+  statusCode,
+  headers: jsonHeaders,
+  body: JSON.stringify({ message, error: message, ...extra })
+});
+
+const isDbUnavailable = (error) => {
+  const dbErrorCodes = new Set(['57P01', '57P02', '57P03']);
+  return (
+    !error?.code ||
+    String(error.code).startsWith('08') ||
+    dbErrorCodes.has(error.code) ||
+    ['ECONNREFUSED', 'ENOTFOUND', 'ETIMEDOUT'].includes(error?.errno)
+  );
+};
+
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers: jsonHeaders, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return buildResponse(405, 'Método não permitido');
   }
 
   const data = parseBody(event.body);
   if (!data) {
-    return { statusCode: 400, headers: jsonHeaders, body: JSON.stringify({ error: 'Invalid JSON body' }) };
+    return buildResponse(400, 'JSON inválido');
   }
 
   const email = String(data.email || '').trim().toLowerCase();
   const password = String(data.password || '');
 
+  if (!email || !password) {
+    return buildResponse(400, 'Email e senha são obrigatórios');
+  }
+
   if (!/^\S+@\S+\.\S+$/.test(email)) {
-    return { statusCode: 400, headers: jsonHeaders, body: JSON.stringify({ error: 'Invalid email' }) };
+    return buildResponse(400, 'E-mail inválido');
   }
 
   if (password.length < 8) {
-    return { statusCode: 400, headers: jsonHeaders, body: JSON.stringify({ error: 'Password must have at least 8 characters' }) };
+    return buildResponse(400, 'A senha deve ter pelo menos 8 caracteres');
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const pool = getPool();
+
+  let pool;
+  try {
+    pool = getPool();
+  } catch {
+    return buildResponse(503, 'Banco indisponível, tente novamente');
+  }
 
   try {
     await pool.query('INSERT INTO users(email, password_hash) VALUES ($1, $2)', [email, passwordHash]);
-    return { statusCode: 201, headers: jsonHeaders, body: JSON.stringify({ ok: true }) };
+    return buildResponse(201, 'Conta criada com sucesso', { ok: true });
   } catch (error) {
     if (error.code === '23505') {
-      return { statusCode: 409, headers: jsonHeaders, body: JSON.stringify({ error: 'Email already registered' }) };
+      return buildResponse(409, 'E-mail já cadastrado');
     }
 
-    return { statusCode: 500, headers: jsonHeaders, body: JSON.stringify({ error: 'Unable to register user' }) };
+    if (isDbUnavailable(error)) {
+      return buildResponse(503, 'Banco indisponível, tente novamente');
+    }
+
+    return buildResponse(500, 'Erro ao cadastrar usuário');
   }
 };

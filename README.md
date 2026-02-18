@@ -1,6 +1,6 @@
 # Farol — Neon persistence + Auth + Tasks (MVP)
 
-Este projeto agora usa **Netlify Functions** como camada backend para autenticação e persistência de tarefas no **Postgres (Neon)**.
+Este projeto usa **Netlify Functions** como camada backend para autenticação e persistência de tarefas no **Postgres (Neon)**.
 
 ## Arquitetura (segura)
 
@@ -14,6 +14,7 @@ Este projeto agora usa **Netlify Functions** como camada backend para autentica�
 - `netlify/functions/migrate.js`
 - `netlify/functions/auth-register.js`
 - `netlify/functions/auth-login.js`
+- `netlify/functions/auth-google.js`
 - `netlify/functions/tasks.js`
 - `netlify/functions/_lib/db.js`
 - `netlify/functions/_lib/auth.js`
@@ -28,10 +29,18 @@ Além da variável já criada pelo Netlify DB:
 
 Configure também:
 
-- `JWT_SECRET` (obrigatória, string longa e aleatória)
-- `MIGRATE_ADMIN_KEY` (obrigatória em produção para rodar migração)
+- `JWT_SECRET` (backend, obrigatória, string longa e aleatória)
+- `MIGRATE_ADMIN_KEY` (backend, obrigatória em produção para rodar migração)
+- `GOOGLE_CLIENT_ID` (backend, obrigatório para login Google)
+- `VITE_GOOGLE_CLIENT_ID` (frontend, obrigatório para exibir botão Google)
 
 > Nunca commitar valores dessas variáveis no repositório.
+
+### Onde configurar no Netlify
+
+1. Acesse **Site configuration → Environment variables** no painel do site.
+2. Cadastre/atualize as variáveis acima.
+3. Faça **redeploy** (Deploys → Trigger deploy) após qualquer mudança de env var.
 
 ## Migrations (idempotentes e versionadas)
 
@@ -74,6 +83,10 @@ curl -X POST "https://<seu-site>.netlify.app/.netlify/functions/migrate" \
 - `POST /.netlify/functions/auth-login`
   - body: `{ "email": "...", "password": "..." }`
   - retorno: `{ "token": "<JWT>" }`
+- `POST /.netlify/functions/auth-google`
+  - body: `{ "id_token": "..." }`
+  - valida `aud` do token com `GOOGLE_CLIENT_ID`
+  - cria usuário (se necessário) e retorna `{ "token": "<JWT>" }`
 
 ### Tasks (protegido por Bearer token)
 
@@ -90,10 +103,12 @@ Authorization: Bearer <token>
 
 ## Frontend
 
-- Tela de login/cadastro real conectada às Functions.
-- Token JWT salvo em `localStorage`.
-- Tarefas carregadas e persistidas no banco por usuário autenticado.
-- Sem token, a aplicação redireciona para `/login`.
+- Tela de login/cadastro conectada às Functions.
+- Cadastro faz login automático em caso de sucesso.
+- Login com Google usa Google Identity Services quando `VITE_GOOGLE_CLIENT_ID` está configurado.
+- Token JWT salvo em `localStorage` com a chave `authToken`.
+- Token enviado no header `Authorization: Bearer <token>` nas chamadas autenticadas.
+- Logout remove `authToken` do `localStorage`.
 
 ## Desenvolvimento local (opcional)
 
@@ -101,7 +116,7 @@ Authorization: Bearer <token>
    ```bash
    npm install
    ```
-2. Configure env vars localmente (`NETLIFY_DATABASE_URL`, `JWT_SECRET`, `MIGRATE_ADMIN_KEY`).
+2. Configure env vars localmente (`NETLIFY_DATABASE_URL`, `JWT_SECRET`, `MIGRATE_ADMIN_KEY`, `GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_ID`).
 3. Rode a aplicação:
    ```bash
    npm run dev
@@ -111,8 +126,10 @@ Authorization: Bearer <token>
 ## Checklist de teste manual
 
 - [ ] Chamar migrate com `x-admin-key` e confirmar `applied` no JSON.
-- [ ] Registrar novo usuário.
-- [ ] Fazer login e receber token.
-- [ ] Criar tarefas e atualizar status (`done`) por usuário.
+- [ ] Registrar novo usuário com e-mail/senha.
+- [ ] Confirmar login automático após cadastro.
+- [ ] Fazer logout e login com as mesmas credenciais.
+- [ ] Com `VITE_GOOGLE_CLIENT_ID` ausente, confirmar aviso de configuração no login.
+- [ ] Com `VITE_GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_ID` configurados, fazer login Google e receber token.
 - [ ] Recarregar a página e confirmar persistência do usuário.
 - [ ] Confirmar que usuário A não vê tarefas do usuário B.
