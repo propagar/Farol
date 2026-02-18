@@ -1,9 +1,26 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LighthouseIcon } from './Icons';
 
 interface AuthProps {
   onLoginSuccess: (token: string) => void;
   appColor: string;
+}
+
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (response: GoogleCredentialResponse) => void }) => void;
+          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
 }
 
 const AuthFormWrapper: React.FC<{ title: string; children: React.ReactNode; appColor: string }> = ({
@@ -36,6 +53,128 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+
+  const googleClientId = useMemo(() => String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim(), []);
+  const isGoogleEnabled = Boolean(googleClientId);
+
+  const parseResponseMessage = async (response: Response, fallback: string) => {
+    try {
+      const data = await response.json();
+      return data.message || data.error || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const submitLogin = useCallback(
+    async (loginEmail: string, loginPassword: string) => {
+      const response = await fetch('/.netlify/functions/auth-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+
+      if (!response.ok) {
+        const message = await parseResponseMessage(response, 'Falha no login.');
+        throw new Error(message);
+      }
+
+      const data = await response.json();
+      if (!data.token) {
+        throw new Error('Token de autenticação ausente na resposta.');
+      }
+
+      onLoginSuccess(data.token);
+    },
+    [onLoginSuccess]
+  );
+
+  const handleGoogleCredential = useCallback(
+    async (googleResponse: GoogleCredentialResponse) => {
+      const idToken = googleResponse.credential;
+      if (!idToken) {
+        setError('Não foi possível obter credencial do Google.');
+        return;
+      }
+
+      setError('');
+      setSuccessMessage('');
+      setIsGoogleLoading(true);
+
+      try {
+        const response = await fetch('/.netlify/functions/auth-google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id_token: idToken }),
+        });
+
+        if (!response.ok) {
+          const message = await parseResponseMessage(response, 'Falha no login com Google.');
+          setError(message);
+          return;
+        }
+
+        const data = await response.json();
+        if (!data.token) {
+          setError('Token de autenticação ausente na resposta.');
+          return;
+        }
+
+        onLoginSuccess(data.token);
+      } catch {
+        setError('Falha ao conectar com o servidor.');
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    },
+    [onLoginSuccess]
+  );
+
+  useEffect(() => {
+    if (isRegistering || !isGoogleEnabled || !googleButtonRef.current) {
+      return;
+    }
+
+    const renderGoogleButton = () => {
+      if (!window.google || !googleButtonRef.current) {
+        return;
+      }
+
+      googleButtonRef.current.innerHTML = '';
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredential,
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: 'standard',
+        size: 'large',
+        width: 320,
+        text: 'continue_with',
+        shape: 'pill',
+      });
+    };
+
+    if (window.google) {
+      renderGoogleButton();
+      return;
+    }
+
+    const existingScript = document.getElementById('google-identity-services');
+    if (existingScript) {
+      existingScript.addEventListener('load', renderGoogleButton, { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'google-identity-services';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderGoogleButton;
+    document.head.appendChild(script);
+  }, [googleClientId, handleGoogleCredential, isGoogleEnabled, isRegistering]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,21 +183,9 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/.netlify/functions/auth-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || 'Falha no login.');
-        return;
-      }
-
-      onLoginSuccess(data.token);
-    } catch {
-      setError('Falha ao conectar com o servidor.');
+      await submitLogin(email, password);
+    } catch (submitError) {
+      setError((submitError as Error).message || 'Falha no login.');
     } finally {
       setIsLoading(false);
     }
@@ -83,18 +210,15 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Falha ao registrar.');
+        const message = await parseResponseMessage(response, 'Falha ao registrar.');
+        setError(message);
         return;
       }
 
-      setSuccessMessage('Cadastro realizado! Faça login para continuar.');
-      setPassword('');
-      setConfirmPassword('');
-      setIsRegistering(false);
-    } catch {
-      setError('Falha ao conectar com o servidor.');
+      await submitLogin(email, password);
+    } catch (registerError) {
+      setError((registerError as Error).message || 'Falha ao conectar com o servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -132,10 +256,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
             />
           </div>
           <div>
-            <label
-              htmlFor="confirmPassword"
-              className="block text-sm font-medium text-gray-700 dark:text-slate-300"
-            >
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
               Confirmar Senha
             </label>
             <input
@@ -208,6 +329,22 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
           {isLoading ? 'Entrando...' : 'Entrar'}
         </button>
       </form>
+
+      <div className="my-5 flex items-center gap-3 text-xs uppercase text-slate-400">
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        <span>ou</span>
+        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+      </div>
+
+      {isGoogleEnabled ? (
+        <div className="flex justify-center">
+          {isGoogleLoading && <p className="text-sm text-slate-500">Conectando com Google...</p>}
+          <div ref={googleButtonRef} />
+        </div>
+      ) : (
+        <p className="text-sm text-amber-600 text-center">Configure no Netlify: VITE_GOOGLE_CLIENT_ID</p>
+      )}
+
       <div className="mt-6 text-center text-sm">
         <button
           onClick={() => setIsRegistering(true)}
