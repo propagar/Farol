@@ -19,18 +19,13 @@ import { GoogleGenAI, FunctionDeclaration, Type, Content } from '@google/genai';
 const UNCATEGORIZED_ID = '0';
 
 const App: React.FC = () => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    
+    const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('authToken'));
+    const isAuthenticated = Boolean(authToken);
+
     // Estados existentes...
-    const [tasks, setTasks] = useState<Task[]>(() => {
-        const savedTasks = localStorage.getItem('tasks');
-        return savedTasks ? JSON.parse(savedTasks) : [];
-    });
-    
-    const [completedTasks, setCompletedTasks] = useState<Task[]>(() => {
-        const saved = localStorage.getItem('completedTasks');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [tasks, setTasks] = useState<Task[]>([]);
+
+    const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
 
     const [categories, setCategories] = useState<Category[]>(() => {
         const savedCategories = localStorage.getItem('categories');
@@ -310,11 +305,51 @@ const App: React.FC = () => {
 
     const handleThemeToggle = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-    useEffect(() => { localStorage.setItem('tasks', JSON.stringify(tasks)); }, [tasks]);
-    useEffect(() => { localStorage.setItem('completedTasks', JSON.stringify(completedTasks)); }, [completedTasks]);
     useEffect(() => { localStorage.setItem('categories', JSON.stringify(categories)); }, [categories]);
     useEffect(() => { localStorage.setItem('weeklyGoals', JSON.stringify(weeklyGoals)); }, [weeklyGoals]);
     useEffect(() => { localStorage.setItem('majorGoals', JSON.stringify(majorGoals)); }, [majorGoals]);
+
+
+    const apiTaskToClientTask = useCallback((apiTask: { id: string; title: string; done: boolean; created_at: string }): Task => ({
+        id: apiTask.id,
+        text: apiTask.title,
+        categoryId: UNCATEGORIZED_ID,
+        completed: apiTask.done,
+        isHabit: false,
+        checklist: [],
+        completedAt: apiTask.done ? apiTask.created_at : undefined,
+        priority: Priority.None,
+    }), []);
+
+    const fetchTasksFromApi = useCallback(async (token: string) => {
+        const response = await fetch('/.netlify/functions/tasks', {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+            throw new Error('Não foi possível carregar tarefas.');
+        }
+
+        const data = await response.json();
+        const mappedTasks = (data.tasks || []).map(apiTaskToClientTask);
+        setTasks(mappedTasks.filter((task: Task) => !task.completed));
+        setCompletedTasks(mappedTasks.filter((task: Task) => task.completed));
+    }, [apiTaskToClientTask]);
+
+    useEffect(() => {
+        if (!authToken) {
+            setTasks([]);
+            setCompletedTasks([]);
+            return;
+        }
+
+        fetchTasksFromApi(authToken).catch(() => {
+            setAuthToken(null);
+            localStorage.removeItem('authToken');
+            window.history.replaceState({}, '', '/login');
+        });
+    }, [authToken, fetchTasksFromApi]);
 
     const [currentView, setCurrentView] = useState<View>(View.Today);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
@@ -367,33 +402,36 @@ const App: React.FC = () => {
         setCategoryModalOpen(true);
     };
 
-    const handleToggleTask = (taskId: string) => {
+    const handleToggleTask = async (taskId: string) => {
+        if (!authToken) return;
+
         const activeTask = tasks.find(t => t.id === taskId);
+        const completedTask = completedTasks.find(t => t.id === taskId);
+        const nextDone = Boolean(activeTask);
+
+        if (!activeTask && !completedTask) return;
+
+        const response = await fetch('/.netlify/functions/tasks', {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ id: taskId, done: nextDone }),
+        });
+
+        if (!response.ok) {
+            alert('Não foi possível atualizar a tarefa.');
+            return;
+        }
+
         if (activeTask) {
-            let updatedTask = { ...activeTask };
-
-            if (updatedTask.isHabit) {
-                const today = new Date().toISOString().split('T')[0];
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayString = yesterday.toISOString().split('T')[0];
-
-                const currentStreak = updatedTask.streak || 0;
-                if (updatedTask.lastCompletedDate === yesterdayString) {
-                    updatedTask.streak = currentStreak + 1;
-                } else {
-                    updatedTask.streak = 1;
-                }
-                updatedTask.lastCompletedDate = today;
-            }
-
-            const taskToComplete = { ...updatedTask, completed: true, completedAt: new Date().toISOString() };
+            const taskToComplete = { ...activeTask, completed: true, completedAt: new Date().toISOString() };
             setTasks(tasks.filter(t => t.id !== taskId));
             setCompletedTasks(prev => [taskToComplete, ...prev]);
             return;
         }
 
-        const completedTask = completedTasks.find(t => t.id === taskId);
         if (completedTask) {
             const taskToReactivate = { ...completedTask, completed: false };
             delete taskToReactivate.completedAt;
@@ -402,7 +440,23 @@ const App: React.FC = () => {
         }
     };
 
-    const handleDeleteTask = (taskId: string) => {
+    const handleDeleteTask = async (taskId: string) => {
+        if (!authToken) return;
+
+        const response = await fetch('/.netlify/functions/tasks', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ id: taskId }),
+        });
+
+        if (!response.ok) {
+            alert('Não foi possível remover a tarefa.');
+            return;
+        }
+
         setTasks(tasks.filter(task => task.id !== taskId));
         setCompletedTasks(completedTasks.filter(task => task.id !== taskId));
     };
@@ -458,20 +512,34 @@ const App: React.FC = () => {
       ));
     };
 
-    const handleAddTask = () => {
-        if (!newTaskText.trim()) return;
-        const newTask: Task = {
-            id: Date.now().toString(),
-            text: newTaskText,
+    const handleAddTask = async () => {
+        if (!newTaskText.trim() || !authToken) return;
+
+        const response = await fetch('/.netlify/functions/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ title: newTaskText.trim() }),
+        });
+
+        if (!response.ok) {
+            alert('Não foi possível criar a tarefa.');
+            return;
+        }
+
+        const data = await response.json();
+        const createdTask: Task = {
+            ...apiTaskToClientTask(data.task),
             categoryId: newTaskCategory,
-            completed: false,
             isHabit: newTaskIsHabit,
-            checklist: [],
             dueDate: newTaskDueDate || undefined,
             priority: newTaskIsHabit ? Priority.None : newTaskPriority,
             description: newTaskDescription || undefined,
         };
-        setTasks([...tasks, newTask]);
+
+        setTasks([createdTask, ...tasks]);
         setNewTaskText('');
         setNewTaskCategory(UNCATEGORIZED_ID);
         setNewTaskIsHabit(false);
@@ -1394,15 +1462,22 @@ const App: React.FC = () => {
         }
     }, []);
 
-    const handleLoginSuccess = () => {
-        setIsAuthenticated(true);
+    const handleLoginSuccess = (token: string) => {
+        localStorage.setItem('authToken', token);
+        setAuthToken(token);
+        window.history.replaceState({}, '', '/');
     };
 
     const handleLogout = () => {
-        setIsAuthenticated(false);
+        localStorage.removeItem('authToken');
+        setAuthToken(null);
+        window.history.replaceState({}, '', '/login');
     };
 
     if (!isAuthenticated) {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.history.replaceState({}, '', '/login');
+        }
         const storedAppColor = localStorage.getItem('appColor') || 'indigo';
         return <Auth onLoginSuccess={handleLoginSuccess} appColor={storedAppColor} />;
     }
