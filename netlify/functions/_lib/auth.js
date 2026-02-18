@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from './jwt.js';
 
 const unauthorized = (message = 'Unauthorized') => ({
   statusCode: 401,
@@ -14,11 +15,7 @@ export const requireUser = (event) => {
   }
 
   const token = authHeader.slice('Bearer '.length);
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!jwtSecret) {
-    throw new Error('JWT_SECRET is required.');
-  }
+  const jwtSecret = getJwtSecret();
 
   try {
     const decoded = jwt.verify(token, jwtSecret);
