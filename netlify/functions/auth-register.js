@@ -17,6 +17,13 @@ const buildResponse = (statusCode, message, extra = {}) => ({
   body: JSON.stringify({ message, error: message, ...extra })
 });
 
+const summarizeError = (error) => {
+  if (!error) return 'unknown_error';
+
+  const base = [error.code, error.message].filter(Boolean).join(' ');
+  return base.slice(0, 160) || 'unknown_error';
+};
+
 const isDbUnavailable = (error) => {
   const dbErrorCodes = new Set(['57P01', '57P02', '57P03']);
   return (
@@ -41,38 +48,48 @@ export const handler = async (event) => {
   const password = String(data.password || '');
 
   if (!email || !password) {
-    return buildResponse(400, 'Email e senha são obrigatórios');
+    return buildResponse(400, 'E-mail e senha são obrigatórios');
   }
 
   if (!/^\S+@\S+\.\S+$/.test(email)) {
     return buildResponse(400, 'E-mail inválido');
   }
 
-  if (password.length < 8) {
-    return buildResponse(400, 'A senha deve ter pelo menos 8 caracteres');
+  if (password.length < 6) {
+    return buildResponse(400, 'A senha deve ter pelo menos 6 caracteres');
   }
-
-  const passwordHash = await bcrypt.hash(password, 12);
 
   let pool;
   try {
     pool = getPool();
-  } catch {
-    return buildResponse(503, 'Banco indisponível, tente novamente');
+  } catch (error) {
+    console.error('AUTH_REGISTER_ERROR', error?.code, error?.message);
+    return buildResponse(503, 'Banco indisponível. Tente novamente em instantes.');
   }
+
+  try {
+    await pool.query('SELECT 1');
+  } catch (error) {
+    console.error('AUTH_REGISTER_ERROR', error?.code, error?.message);
+    return buildResponse(503, 'Banco indisponível. Tente novamente em instantes.');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
 
   try {
     await pool.query('INSERT INTO users(email, password_hash) VALUES ($1, $2)', [email, passwordHash]);
     return buildResponse(201, 'Conta criada com sucesso', { ok: true });
   } catch (error) {
+    console.error('AUTH_REGISTER_ERROR', error?.code, error?.message);
+
     if (error.code === '23505') {
-      return buildResponse(409, 'E-mail já cadastrado');
+      return buildResponse(409, 'E-mail já cadastrado. Faça login.');
     }
 
     if (isDbUnavailable(error)) {
-      return buildResponse(503, 'Banco indisponível, tente novamente');
+      return buildResponse(503, 'Banco indisponível. Tente novamente em instantes.');
     }
 
-    return buildResponse(500, 'Erro ao cadastrar usuário');
+    return buildResponse(500, 'Erro interno ao cadastrar.', { detail: summarizeError(error) });
   }
 };
