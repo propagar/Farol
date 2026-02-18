@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { getPool } from './_lib/db.js';
+import { getJwtSecret } from './_lib/jwt.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -34,10 +35,7 @@ export const handler = async (event) => {
     return buildResponse(405, 'Método não permitido');
   }
 
-  const jwtSecret = process.env.JWT_SECRET;
-  if (!jwtSecret) {
-    return buildResponse(500, 'JWT_SECRET não configurado');
-  }
+  const jwtSecret = getJwtSecret();
 
   const googleClientId = process.env.GOOGLE_CLIENT_ID;
   if (!googleClientId) {

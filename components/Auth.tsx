@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LighthouseIcon } from './Icons';
 
 interface AuthProps {
@@ -54,10 +54,60 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const [googleConfigMessage, setGoogleConfigMessage] = useState('');
+  const [googleClientId, setGoogleClientId] = useState(() => String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim());
+  const [isGoogleConfigLoading, setIsGoogleConfigLoading] = useState(() => !googleClientId);
+  const loginGoogleButtonRef = useRef<HTMLDivElement>(null);
+  const registerGoogleButtonRef = useRef<HTMLDivElement>(null);
 
-  const googleClientId = useMemo(() => String(import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim(), []);
   const isGoogleEnabled = Boolean(googleClientId);
+
+  useEffect(() => {
+    if (googleClientId) {
+      setIsGoogleConfigLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadAuthConfig = async () => {
+      try {
+        const response = await fetch('/.netlify/functions/auth-config');
+        const data = await response.json().catch(() => ({}));
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (!response.ok) {
+          setGoogleConfigMessage('Não foi possível carregar a configuração de login Google.');
+          return;
+        }
+
+        const backendGoogleClientId = String(data.googleClientId || '').trim();
+        if (backendGoogleClientId) {
+          setGoogleClientId(backendGoogleClientId);
+          setGoogleConfigMessage('');
+        } else {
+          setGoogleConfigMessage('Configure no Netlify: GOOGLE_CLIENT_ID ou VITE_GOOGLE_CLIENT_ID.');
+        }
+      } catch {
+        if (isMounted) {
+          setGoogleConfigMessage('Não foi possível carregar a configuração de login Google.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsGoogleConfigLoading(false);
+        }
+      }
+    };
+
+    loadAuthConfig();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [googleClientId]);
 
   const parseResponseMessage = async (response: Response, fallback: string) => {
     try {
@@ -133,7 +183,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   );
 
   useEffect(() => {
-    if (isRegistering || !isGoogleEnabled || !googleButtonRef.current) {
+    const googleButtonRef = isRegistering ? registerGoogleButtonRef : loginGoogleButtonRef;
+    if (!isGoogleEnabled || !googleButtonRef.current) {
       return;
     }
 
@@ -175,6 +226,27 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
     script.onload = renderGoogleButton;
     document.head.appendChild(script);
   }, [googleClientId, handleGoogleCredential, isGoogleEnabled, isRegistering]);
+
+  const renderGoogleAccess = useCallback(() => {
+    if (isGoogleConfigLoading) {
+      return <p className="text-sm text-slate-500 text-center">Carregando login com Google...</p>;
+    }
+
+    if (!isGoogleEnabled) {
+      return (
+        <p className="text-sm text-amber-600 text-center">
+          {googleConfigMessage || 'Configure no Netlify: GOOGLE_CLIENT_ID ou VITE_GOOGLE_CLIENT_ID.'}
+        </p>
+      );
+    }
+
+    return (
+      <div className="flex justify-center">
+        {isGoogleLoading && <p className="text-sm text-slate-500">Conectando com Google...</p>}
+        <div ref={isRegistering ? registerGoogleButtonRef : loginGoogleButtonRef} />
+      </div>
+    );
+  }, [googleConfigMessage, isGoogleConfigLoading, isGoogleEnabled, isGoogleLoading, isRegistering]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,6 +351,15 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
             {isLoading ? 'Cadastrando...' : 'Cadastrar'}
           </button>
         </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs uppercase text-slate-400">
+          <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+          <span>ou</span>
+          <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        </div>
+
+        {renderGoogleAccess()}
+
         <div className="mt-6 text-center text-sm">
           <button
             onClick={() => setIsRegistering(false)}
@@ -337,14 +418,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
         <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
       </div>
 
-      {isGoogleEnabled ? (
-        <div className="flex justify-center">
-          {isGoogleLoading && <p className="text-sm text-slate-500">Conectando com Google...</p>}
-          <div ref={googleButtonRef} />
-        </div>
-      ) : (
-        <p className="text-sm text-amber-600 text-center">Configure no Netlify: VITE_GOOGLE_CLIENT_ID</p>
-      )}
+      {renderGoogleAccess()}
 
       <div className="mt-6 text-center text-sm">
         <button
