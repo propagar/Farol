@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getPool } from './_lib/db.js';
+import { ensureDatabaseReady } from './_lib/db.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -61,14 +61,7 @@ export const handler = async (event) => {
 
   let pool;
   try {
-    pool = getPool();
-  } catch (error) {
-    console.error('AUTH_REGISTER_ERROR', error?.code, error?.message);
-    return buildResponse(503, 'Banco indisponível. Tente novamente em instantes.');
-  }
-
-  try {
-    await pool.query('SELECT 1');
+    pool = await ensureDatabaseReady();
   } catch (error) {
     console.error('AUTH_REGISTER_ERROR', error?.code, error?.message);
     return buildResponse(503, 'Banco indisponível. Tente novamente em instantes.');

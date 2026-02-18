@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
-import { getPool } from './_lib/db.js';
+import { ensureDatabaseReady } from './_lib/db.js';
 import { getJwtSecret } from './_lib/jwt.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -81,7 +81,7 @@ export const handler = async (event) => {
 
   let pool;
   try {
-    pool = getPool();
+    pool = await ensureDatabaseReady();
   } catch {
     return buildResponse(503, 'Banco indisponível, tente novamente');
   }

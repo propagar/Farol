@@ -1,4 +1,4 @@
-import { getPool } from './_lib/db.js';
+import { ensureDatabaseReady } from './_lib/db.js';
 import { requireUser } from './_lib/auth.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -17,7 +17,7 @@ export const handler = async (event) => {
     return auth.error;
   }
 
-  const pool = getPool();
+  const pool = await ensureDatabaseReady();
   const { userId } = auth;
 
   if (event.httpMethod === 'GET') {
