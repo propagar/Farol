@@ -15,6 +15,7 @@ Este projeto usa **Netlify Functions** como camada backend para autenticação e
 - `netlify/functions/auth-register.js`
 - `netlify/functions/auth-login.js`
 - `netlify/functions/auth-google.js`
+- `netlify/functions/auth-config.js`
 - `netlify/functions/tasks.js`
 - `netlify/functions/_lib/db.js`
 - `netlify/functions/_lib/auth.js`
@@ -111,6 +112,7 @@ Authorization: Bearer <token>
 - Tela de login/cadastro conectada às Functions.
 - Cadastro faz login automático em caso de sucesso.
 - Login com Google usa Google Identity Services quando `VITE_GOOGLE_CLIENT_ID` está configurado.
+- Se `VITE_GOOGLE_CLIENT_ID` não existir no build do frontend, a UI tenta carregar `GOOGLE_CLIENT_ID` via `/.netlify/functions/auth-config`.
 - Token JWT salvo em `localStorage` com a chave `authToken`.
 - Token enviado no header `Authorization: Bearer <token>` nas chamadas autenticadas.
 - Logout remove `authToken` do `localStorage`.
