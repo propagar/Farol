@@ -76,6 +76,11 @@ curl -X POST "https://<seu-site>.netlify.app/.netlify/functions/migrate" \
 
 ## Endpoints disponíveis
 
+### Diagnóstico rápido de banco
+
+- `GET /.netlify/functions/health` executa `SELECT 1` para validar conectividade com o Neon.
+- Em caso de erro, a resposta será `503` com mensagem amigável de indisponibilidade.
+
 ### Auth
 
 - `POST /.netlify/functions/auth-register`

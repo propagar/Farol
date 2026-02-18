@@ -209,10 +209,11 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const message = await parseResponseMessage(response, 'Falha ao registrar.');
-        setError(message);
+        console.error('REGISTER_FAIL', response.status, data);
+        setError(data.message || data.error || 'Não foi possível cadastrar. Tente novamente.');
         return;
       }
 
@@ -251,7 +252,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={6}
               className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
             />
           </div>
@@ -265,7 +266,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
-              minLength={8}
+              minLength={6}
               className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
             />
           </div>
