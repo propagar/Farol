@@ -99,10 +99,18 @@ export const ensureAppDataSchema = async () => {
       await dbPool.query('CREATE INDEX IF NOT EXISTS idx_finance_data_records_user_id ON finance_data.records(user_id)');
 
       await dbPool.query(`
-        INSERT INTO task_data.tasks (id, user_id, title, done, created_at, updated_at)
-        SELECT id, user_id, title, done, created_at, created_at
-        FROM public.tasks
-        ON CONFLICT (id) DO NOTHING
+        DO $$
+        BEGIN
+          IF to_regclass('public.tasks') IS NOT NULL THEN
+            EXECUTE $migration$
+              INSERT INTO task_data.tasks (id, user_id, title, done, created_at, updated_at)
+              SELECT id, user_id, title, done, created_at, created_at
+              FROM public.tasks
+              ON CONFLICT (id) DO NOTHING
+            $migration$;
+          END IF;
+        END
+        $$;
       `);
     })().catch((error) => {
       appDataSchemaPromise = undefined;
