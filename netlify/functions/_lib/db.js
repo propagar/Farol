@@ -3,6 +3,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 let pool;
+let authSchemaPromise;
 
 export const getPool = () => {
   if (!pool) {
@@ -19,4 +20,27 @@ export const getPool = () => {
   }
 
   return pool;
+};
+
+export const ensureAuthSchema = async () => {
+  const dbPool = getPool();
+
+  if (!authSchemaPromise) {
+    authSchemaPromise = (async () => {
+      await dbPool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id UUID PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `);
+      await dbPool.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+    })().catch((error) => {
+      authSchemaPromise = undefined;
+      throw error;
+    });
+  }
+
+  return authSchemaPromise;
 };

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getPool } from './_lib/db.js';
+import { ensureAuthSchema, getPool } from './_lib/db.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -33,6 +33,7 @@ export const handler = async (event) => {
   const pool = getPool();
 
   try {
+    await ensureAuthSchema();
     const { rows } = await pool.query('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
     const user = rows[0];
 
