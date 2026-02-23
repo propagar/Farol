@@ -13,7 +13,7 @@ import FloatingAIAssistant from './components/FloatingAIAssistant';
 import Settings from './components/Settings';
 import Auth from './components/Auth';
 import TodayDashboard from './components/TodayDashboard';
-import { PlusIcon, TargetIcon, TrashIcon, FlagIcon } from './components/Icons';
+import { PlusIcon, TargetIcon, TrashIcon, FlagIcon, PencilIcon } from './components/Icons';
 import { GoogleGenAI, FunctionDeclaration, Type, Content } from '@google/genai';
 
 const UNCATEGORIZED_ID = '0';
@@ -384,6 +384,7 @@ const App: React.FC = () => {
     const [isGoalModalOpen, setGoalModalOpen] = useState(false);
     const [newGoalText, setNewGoalText] = useState('');
     const [newGoalMajorGoalId, setNewGoalMajorGoalId] = useState<string | null>(null);
+    const [editingWeeklyGoalId, setEditingWeeklyGoalId] = useState<string | null>(null);
 
     const [isMajorGoalModalOpen, setMajorGoalModalOpen] = useState(false);
     const [newMajorGoalText, setNewMajorGoalText] = useState('');
@@ -392,6 +393,7 @@ const App: React.FC = () => {
     const [autoCreateHabitForMajorGoal, setAutoCreateHabitForMajorGoal] = useState(false);
     const [newMajorGoalHabitText, setNewMajorGoalHabitText] = useState('');
     const [newMajorGoalHabitIncrement, setNewMajorGoalHabitIncrement] = useState('');
+    const [editingMajorGoalId, setEditingMajorGoalId] = useState<string | null>(null);
 
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
@@ -602,13 +604,20 @@ const App: React.FC = () => {
         setTaskModalOpen(false);
     };
 
-    const handleAddGoal = () => {
+    const handleSaveGoal = () => {
         if (!newGoalText.trim()) return;
-        const newGoal: WeeklyGoal = { id: Date.now().toString(), text: newGoalText, completed: false, majorGoalId: newGoalMajorGoalId };
-        setWeeklyGoals([...weeklyGoals, newGoal]);
+
+        if (editingWeeklyGoalId) {
+            setWeeklyGoals(weeklyGoals.map(goal => goal.id === editingWeeklyGoalId ? { ...goal, text: newGoalText.trim(), majorGoalId: newGoalMajorGoalId } : goal));
+        } else {
+            const newGoal: WeeklyGoal = { id: Date.now().toString(), text: newGoalText.trim(), completed: false, majorGoalId: newGoalMajorGoalId };
+            setWeeklyGoals([...weeklyGoals, newGoal]);
+        }
+
         setNewGoalText('');
         setGoalModalOpen(false);
         setNewGoalMajorGoalId(null);
+        setEditingWeeklyGoalId(null);
     };
     
     const handleToggleGoal = (goalId: string) => {
@@ -632,11 +641,27 @@ const App: React.FC = () => {
     
     const handleReorderCategories = (reorderedCategories: Category[]) => setCategories(reorderedCategories);
 
-    const handleAddMajorGoal = async () => {
+    const handleSaveMajorGoal = async () => {
         if (!newMajorGoalText.trim()) return;
 
         const parsedTarget = Number(newMajorGoalTarget);
         const targetValue = Number.isFinite(parsedTarget) && parsedTarget > 0 ? parsedTarget : undefined;
+
+        if (editingMajorGoalId) {
+            setMajorGoals(prev => prev.map(goal => goal.id === editingMajorGoalId ? {
+                ...goal,
+                text: newMajorGoalText.trim(),
+                targetValue,
+                unit: newMajorGoalUnit.trim() || undefined,
+            } : goal));
+
+            setNewMajorGoalText('');
+            setNewMajorGoalTarget('');
+            setNewMajorGoalUnit('km');
+            setEditingMajorGoalId(null);
+            setMajorGoalModalOpen(false);
+            return;
+        }
 
         const parsedHabitIncrement = Number(newMajorGoalHabitIncrement);
         const habitIncrement = Number.isFinite(parsedHabitIncrement) && parsedHabitIncrement > 0 ? parsedHabitIncrement : undefined;
@@ -705,12 +730,36 @@ const App: React.FC = () => {
         setAutoCreateHabitForMajorGoal(false);
         setNewMajorGoalHabitText('');
         setNewMajorGoalHabitIncrement('');
+        setEditingMajorGoalId(null);
         setMajorGoalModalOpen(false);
     };
 
     const handleDeleteMajorGoal = (goalId: string) => {
         setWeeklyGoals(weeklyGoals.map(wg => wg.majorGoalId === goalId ? { ...wg, majorGoalId: null } : wg));
         setMajorGoals(majorGoals.filter(goal => goal.id !== goalId));
+    };
+
+
+    const openAddMajorGoalModal = () => {
+        setEditingMajorGoalId(null);
+        setNewMajorGoalText('');
+        setNewMajorGoalTarget('');
+        setNewMajorGoalUnit('km');
+        setAutoCreateHabitForMajorGoal(false);
+        setNewMajorGoalHabitText('');
+        setNewMajorGoalHabitIncrement('');
+        setMajorGoalModalOpen(true);
+    };
+
+    const openEditMajorGoalModal = (goal: MajorGoal) => {
+        setEditingMajorGoalId(goal.id);
+        setNewMajorGoalText(goal.text);
+        setNewMajorGoalTarget(goal.targetValue?.toString() || '');
+        setNewMajorGoalUnit(goal.unit || 'km');
+        setAutoCreateHabitForMajorGoal(false);
+        setNewMajorGoalHabitText('');
+        setNewMajorGoalHabitIncrement('');
+        setMajorGoalModalOpen(true);
     };
 
     const handleAddCalendarEvent = (event: Omit<CalendarEvent, 'id'>) => {
@@ -1475,7 +1524,16 @@ const App: React.FC = () => {
     const handleNewMessage = (message: ChatMessage) => setChatMessages(prev => [...prev, message]);
 
     const openAddWeeklyGoalModal = (majorGoalId: string | null = null) => {
+        setEditingWeeklyGoalId(null);
+        setNewGoalText('');
         setNewGoalMajorGoalId(majorGoalId);
+        setGoalModalOpen(true);
+    };
+
+    const openEditWeeklyGoalModal = (goal: WeeklyGoal) => {
+        setEditingWeeklyGoalId(goal.id);
+        setNewGoalText(goal.text);
+        setNewGoalMajorGoalId(goal.majorGoalId || null);
         setGoalModalOpen(true);
     };
 
@@ -1698,7 +1756,7 @@ const App: React.FC = () => {
                     <div>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">Metas Maiores</h2>
-                            <button onClick={() => setMajorGoalModalOpen(true)} className={`flex items-center gap-2 text-${appColor}-600 hover:text-${appColor}-800 dark:text-${appColor}-400 dark:hover:text-${appColor}-300 font-semibold transition-colors`}> <FlagIcon /> Adicionar Meta Maior </button>
+                            <button onClick={openAddMajorGoalModal} className={`flex items-center gap-2 text-${appColor}-600 hover:text-${appColor}-800 dark:text-${appColor}-400 dark:hover:text-${appColor}-300 font-semibold transition-colors`}> <FlagIcon /> Adicionar Meta Maior </button>
                         </div>
                         <div className="space-y-8">
                             {majorGoals.map(majorGoal => {
@@ -1712,7 +1770,10 @@ const App: React.FC = () => {
                                     <div key={majorGoal.id} className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-lg shadow-sm">
                                         <div className="flex justify-between items-start mb-3">
                                             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">{majorGoal.text}</h3>
-                                            <button onClick={() => handleDeleteMajorGoal(majorGoal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => openEditMajorGoalModal(majorGoal)} className={`text-slate-400 dark:text-slate-500 hover:text-${appColor}-600 dark:hover:text-${appColor}-400 transition-colors`}> <PencilIcon /> </button>
+                                                <button onClick={() => handleDeleteMajorGoal(majorGoal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                            </div>
                                         </div>
                                         {hasNumericTarget && (
                                             <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
@@ -1728,7 +1789,10 @@ const App: React.FC = () => {
                                                         <input type="checkbox" checked={goal.completed} onChange={() => handleToggleGoal(goal.id)} className={`h-5 w-5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-${appColor}-600 focus:ring-${appColor}-500`} />
                                                         <label className={`ml-3 block text-sm font-medium text-slate-700 dark:text-slate-300 ${goal.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{goal.text}</label>
                                                     </div>
-                                                    <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button onClick={() => openEditWeeklyGoalModal(goal)} className={`text-slate-400 dark:text-slate-500 hover:text-${appColor}-600 dark:hover:text-${appColor}-400 transition-colors`}> <PencilIcon /> </button>
+                                                        <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                                    </div>
                                                 </div>
                                             ))}
                                             {relatedGoals.length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">Nenhuma meta semanal adicionada a este objetivo.</p>}
@@ -1747,7 +1811,10 @@ const App: React.FC = () => {
                                             <input type="checkbox" checked={goal.completed} onChange={() => handleToggleGoal(goal.id)} className={`h-5 w-5 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-${appColor}-600 focus:ring-${appColor}-500`} />
                                             <label className={`ml-3 block text-sm font-medium text-slate-700 dark:text-slate-300 ${goal.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>{goal.text}</label>
                                         </div>
-                                        <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => openEditWeeklyGoalModal(goal)} className={`text-slate-400 dark:text-slate-500 hover:text-${appColor}-600 dark:hover:text-${appColor}-400 transition-colors`}> <PencilIcon /> </button>
+                                            <button onClick={() => handleDeleteGoal(goal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -1869,7 +1936,10 @@ const App: React.FC = () => {
                 </div>
             </Modal>
             
-            <Modal isOpen={isGoalModalOpen} onClose={() => setGoalModalOpen(false)} title="Adicionar Nova Meta Semanal">
+            <Modal isOpen={isGoalModalOpen} onClose={() => {
+                setGoalModalOpen(false);
+                setEditingWeeklyGoalId(null);
+            }} title={editingWeeklyGoalId ? 'Editar Meta Semanal' : 'Adicionar Nova Meta Semanal'}>
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="goal-text" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Meta</label>
@@ -1884,11 +1954,14 @@ const App: React.FC = () => {
                     </div>
                 </div>
                  <div className="mt-5 sm:mt-6">
-                    <button type="button" onClick={handleAddGoal} className={`inline-flex w-full justify-center rounded-md border border-transparent bg-${appColor}-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-${appColor}-700 focus:outline-none focus:ring-2 focus:ring-${appColor}-500 focus:ring-offset-2 sm:text-sm`}> Adicionar Meta </button>
+                    <button type="button" onClick={handleSaveGoal} className={`inline-flex w-full justify-center rounded-md border border-transparent bg-${appColor}-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-${appColor}-700 focus:outline-none focus:ring-2 focus:ring-${appColor}-500 focus:ring-offset-2 sm:text-sm`}> {editingWeeklyGoalId ? 'Salvar Alterações' : 'Adicionar Meta'} </button>
                 </div>
             </Modal>
             
-            <Modal isOpen={isMajorGoalModalOpen} onClose={() => setMajorGoalModalOpen(false)} title="Adicionar Nova Meta Maior">
+            <Modal isOpen={isMajorGoalModalOpen} onClose={() => {
+                setMajorGoalModalOpen(false);
+                setEditingMajorGoalId(null);
+            }} title={editingMajorGoalId ? 'Editar Meta Maior' : 'Adicionar Nova Meta Maior'}>
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="major-goal-text" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Nome da Meta</label>
@@ -1905,7 +1978,8 @@ const App: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    {!editingMajorGoalId && (
+                        <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                         <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
                             <input type="checkbox" checked={autoCreateHabitForMajorGoal} onChange={e => setAutoCreateHabitForMajorGoal(e.target.checked)} className={`h-4 w-4 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-${appColor}-600 focus:ring-${appColor}-500`} />
                             Criar hábito diário automático para evoluir esta meta
@@ -1923,10 +1997,11 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         )}
-                    </div>
+                        </div>
+                    )}
                 </div>
                  <div className="mt-5 sm:mt-6">
-                    <button type="button" onClick={handleAddMajorGoal} className={`inline-flex w-full justify-center rounded-md border border-transparent bg-${appColor}-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-${appColor}-700 focus:outline-none focus:ring-2 focus:ring-${appColor}-500 focus:ring-offset-2 sm:text-sm`}> Adicionar Meta Maior </button>
+                    <button type="button" onClick={handleSaveMajorGoal} className={`inline-flex w-full justify-center rounded-md border border-transparent bg-${appColor}-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-${appColor}-700 focus:outline-none focus:ring-2 focus:ring-${appColor}-500 focus:ring-offset-2 sm:text-sm`}> {editingMajorGoalId ? 'Salvar Alterações' : 'Adicionar Meta Maior'} </button>
                 </div>
             </Modal>
             
@@ -1936,3 +2011,24 @@ const App: React.FC = () => {
 };
 
 export default App;
+    const openAddMajorGoalModal = () => {
+        setEditingMajorGoalId(null);
+        setNewMajorGoalText('');
+        setNewMajorGoalTarget('');
+        setNewMajorGoalUnit('km');
+        setAutoCreateHabitForMajorGoal(false);
+        setNewMajorGoalHabitText('');
+        setNewMajorGoalHabitIncrement('');
+        setMajorGoalModalOpen(true);
+    };
+
+    const openEditMajorGoalModal = (goal: MajorGoal) => {
+        setEditingMajorGoalId(goal.id);
+        setNewMajorGoalText(goal.text);
+        setNewMajorGoalTarget(goal.targetValue?.toString() || '');
+        setNewMajorGoalUnit(goal.unit || 'km');
+        setAutoCreateHabitForMajorGoal(false);
+        setNewMajorGoalHabitText('');
+        setNewMajorGoalHabitIncrement('');
+        setMajorGoalModalOpen(true);
+    };
