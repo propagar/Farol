@@ -28,7 +28,7 @@ Além da variável já criada pelo Netlify DB:
 
 Configure também:
 
-- `JWT_SECRET` (obrigatória, string longa e aleatória)
+- `JWT_SECRET` (recomendada em produção, string longa e aleatória)
 - `MIGRATE_ADMIN_KEY` (obrigatória em produção para rodar migração)
 
 > Nunca commitar valores dessas variáveis no repositório.
@@ -138,8 +138,9 @@ Depois de concluir o cadastro com mensagem de sucesso, você pode validar de tr�
 
 Se aparecer erro relacionado a `JWT_SECRET` no login:
 
-- O cadastro pode funcionar e gravar no banco, mas o login falha porque o backend não consegue gerar o token JWT.
-- Configure `JWT_SECRET` no ambiente (Netlify ou `.env` local) com uma string longa e aleatória.
+- O backend usa `JWT_SECRET` quando disponível.
+- Se `JWT_SECRET` não estiver definido, ele usa automaticamente um segredo estável derivado de `NETLIFY_DATABASE_URL`.
+- Em produção, mantenha `JWT_SECRET` configurado explicitamente para melhor controle de segurança.
 - Reinicie o processo de desenvolvimento/deploy após configurar a variável.
 
 Exemplo de geração de segredo local:

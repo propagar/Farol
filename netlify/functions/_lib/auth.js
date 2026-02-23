@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from './jwt.js';
 
 const unauthorized = (message = 'Unauthorized') => ({
   statusCode: 401,
@@ -14,10 +15,10 @@ export const requireUser = (event) => {
   }
 
   const token = authHeader.slice('Bearer '.length);
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = getJwtSecret();
 
   if (!jwtSecret) {
-    throw new Error('JWT_SECRET is required.');
+    throw new Error('JWT secret is required (JWT_SECRET or NETLIFY_DATABASE_URL).');
   }
 
   try {

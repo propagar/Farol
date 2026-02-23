@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { ensureAuthSchema, getPool } from './_lib/db.js';
+import { getJwtSecret } from './_lib/jwt.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -17,13 +18,13 @@ export const handler = async (event) => {
     return { statusCode: 405, headers: jsonHeaders, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
-  const jwtSecret = process.env.JWT_SECRET;
+  const jwtSecret = getJwtSecret();
   if (!jwtSecret) {
     return {
       statusCode: 500,
       headers: jsonHeaders,
       body: JSON.stringify({
-        error: 'Configuração ausente no servidor: defina JWT_SECRET para habilitar o login',
+        error: 'Configuração ausente no servidor: defina JWT_SECRET (ou NETLIFY_DATABASE_URL) para habilitar o login',
         code: 'JWT_SECRET_MISSING'
       })
     };
