@@ -19,7 +19,14 @@ export const handler = async (event) => {
 
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
-    return { statusCode: 500, headers: jsonHeaders, body: JSON.stringify({ error: 'JWT_SECRET not configured' }) };
+    return {
+      statusCode: 500,
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        error: 'Configuração ausente no servidor: defina JWT_SECRET para habilitar o login',
+        code: 'JWT_SECRET_MISSING'
+      })
+    };
   }
 
   const data = parseBody(event.body);
