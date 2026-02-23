@@ -328,7 +328,9 @@ const App: React.FC = () => {
         });
 
         if (!response.ok) {
-            throw new Error('Não foi possível carregar tarefas.');
+            const error = new Error('Não foi possível carregar tarefas.');
+            (error as Error & { statusCode?: number }).statusCode = response.status;
+            throw error;
         }
 
         const data = await response.json();
@@ -344,10 +346,12 @@ const App: React.FC = () => {
             return;
         }
 
-        fetchTasksFromApi(authToken).catch(() => {
-            setAuthToken(null);
-            localStorage.removeItem('authToken');
-            window.history.replaceState({}, '', '/login');
+        fetchTasksFromApi(authToken).catch((error: Error & { statusCode?: number }) => {
+            if (error.statusCode === 401 || error.statusCode === 403) {
+                setAuthToken(null);
+                localStorage.removeItem('authToken');
+                window.history.replaceState({}, '', '/login');
+            }
         });
     }, [authToken, fetchTasksFromApi]);
 
