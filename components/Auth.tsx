@@ -33,6 +33,8 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +102,18 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
     }
   };
 
+  const goToLogin = () => {
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setIsRegistering(false);
+  };
+
+  const goToRegister = () => {
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setIsRegistering(true);
+  };
+
   if (isRegistering) {
     return (
       <AuthFormWrapper title="Criar Conta" appColor={appColor}>
@@ -121,15 +135,25 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
             <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
               Senha
             </label>
-            <input
-              type="password"
-              id="reg-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
-            />
+            <div className="relative mt-1">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                id="reg-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2 pr-10`}
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
           <div>
             <label
@@ -138,15 +162,25 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
             >
               Confirmar Senha
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={8}
-              className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
-            />
+            <div className="relative mt-1">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={8}
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2 pr-10`}
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPassword ? 'Esconder confirmação de senha' : 'Mostrar confirmação de senha'}
+                onClick={() => setShowConfirmPassword((prev) => !prev)}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+              >
+                {showConfirmPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
           <button
@@ -159,7 +193,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
         </form>
         <div className="mt-6 text-center text-sm">
           <button
-            onClick={() => setIsRegistering(false)}
+            onClick={goToLogin}
             className={`font-medium text-${appColor}-600 hover:text-${appColor}-500 dark:text-${appColor}-400 dark:hover:text-${appColor}-300`}
           >
             Já tem uma conta? Faça login
@@ -189,14 +223,24 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
           <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
             Senha
           </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
-          />
+          <div className="relative mt-1">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              id="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2 pr-10`}
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-slate-100"
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
         </div>
         {error && <p className="text-sm text-red-600 text-center">{error}</p>}
         {successMessage && <p className="text-sm text-green-600 text-center">{successMessage}</p>}
@@ -210,7 +254,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
       </form>
       <div className="mt-6 text-center text-sm">
         <button
-          onClick={() => setIsRegistering(true)}
+          onClick={goToRegister}
           className={`font-medium text-${appColor}-600 hover:text-${appColor}-500 dark:text-${appColor}-400 dark:hover:text-${appColor}-300`}
         >
           Não tem uma conta? Cadastre-se
