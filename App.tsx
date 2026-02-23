@@ -531,6 +531,8 @@ const App: React.FC = () => {
     const handleAddTask = async () => {
         if (!newTaskText.trim() || !authToken) return;
 
+        const normalizedCategoryId = newTaskCategory === UNCATEGORIZED_ID ? null : newTaskCategory;
+
         const response = await fetch('/.netlify/functions/tasks', {
             method: 'POST',
             headers: {
@@ -540,7 +542,7 @@ const App: React.FC = () => {
             body: JSON.stringify({
                 title: newTaskText.trim(),
                 description: newTaskDescription.trim() || null,
-                categoryId: newTaskCategory,
+                categoryId: normalizedCategoryId,
                 dueDate: newTaskDueDate || null,
                 priority: newTaskIsHabit ? Priority.None : newTaskPriority,
                 isHabit: newTaskIsHabit,
@@ -556,11 +558,11 @@ const App: React.FC = () => {
         const data = await response.json();
         const createdTask: Task = {
             ...apiTaskToClientTask(data.task),
-            categoryId: newTaskCategory,
+            categoryId: normalizedCategoryId || UNCATEGORIZED_ID,
             isHabit: newTaskIsHabit,
             dueDate: newTaskDueDate || undefined,
             priority: newTaskIsHabit ? Priority.None : newTaskPriority,
-            description: newTaskDescription || undefined,
+            description: newTaskDescription.trim() || undefined,
         };
 
         setTasks([createdTask, ...tasks]);

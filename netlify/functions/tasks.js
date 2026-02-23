@@ -44,9 +44,12 @@ export const handler = async (event) => {
     }
 
     const description = typeof data.description === 'string' ? data.description.trim() : null;
-    const categoryId = typeof data.categoryId === 'string' ? data.categoryId : null;
-    const dueDate = typeof data.dueDate === 'string' && data.dueDate.trim() ? data.dueDate : null;
-    const priority = typeof data.priority === 'string' ? data.priority : null;
+    const rawCategoryId = typeof data.categoryId === 'string' ? data.categoryId.trim() : '';
+    const categoryId = rawCategoryId && rawCategoryId !== '0' ? rawCategoryId : null;
+    const rawDueDate = typeof data.dueDate === 'string' ? data.dueDate.trim() : '';
+    const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDueDate) ? rawDueDate : null;
+    const rawPriority = typeof data.priority === 'string' ? data.priority.trim() : '';
+    const priority = rawPriority || null;
     const isHabit = Boolean(data.isHabit);
     const checklist = Array.isArray(data.checklist) ? data.checklist : [];
 
