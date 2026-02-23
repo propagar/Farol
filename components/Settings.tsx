@@ -257,15 +257,13 @@ const Settings: React.FC<SettingsProps> = ({
                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <button
                             onClick={onConnectGoogleCalendar}
-                            disabled={isGoogleCalendarAuthorized}
+                            disabled
                             className={`flex items-center gap-3 w-full sm:w-auto justify-center text-left py-2.5 px-4 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                                isGoogleCalendarAuthorized
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-300 cursor-not-allowed'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200'
+                                'bg-slate-100 text-slate-400 dark:bg-slate-700/60 dark:text-slate-500 cursor-not-allowed'
                             }`}
                         >
                             <div className="w-5 h-5"><GoogleCalendarIcon/></div>
-                            <span>{isGoogleCalendarAuthorized ? "Google Agenda Conectado" : "Conectar com Google Agenda"}</span>
+                            <span>Google Agenda (em breve)</span>
                         </button>
                         <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
                             Sincronize suas tarefas com data de vencimento diretamente no seu Google Agenda.
@@ -274,15 +272,13 @@ const Settings: React.FC<SettingsProps> = ({
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                         <button
                             onClick={onConnectGoogleTasks}
-                            disabled={isGoogleTasksAuthorized}
+                            disabled
                             className={`flex items-center gap-3 w-full sm:w-auto justify-center text-left py-2.5 px-4 rounded-lg text-sm font-medium transition-colors duration-200 ${
-                                isGoogleTasksAuthorized
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-800/50 dark:text-emerald-300 cursor-not-allowed'
-                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200'
+                                'bg-slate-100 text-slate-400 dark:bg-slate-700/60 dark:text-slate-500 cursor-not-allowed'
                             }`}
                         >
                             <div className="w-5 h-5"><GoogleTasksIcon/></div>
-                            <span>{isGoogleTasksAuthorized ? "Tarefas do Google Conectado" : "Conectar com Tarefas do Google"}</span>
+                            <span>Tarefas do Google (em breve)</span>
                         </button>
                         <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
                             Sincronize suas tarefas com a sua lista do Google Tasks.
