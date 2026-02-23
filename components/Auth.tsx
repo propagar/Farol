@@ -39,6 +39,14 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const getFriendlyApiError = (apiError: string, apiCode?: string) => {
+    if (apiCode === 'JWT_SECRET_MISSING' || apiError.includes('JWT_SECRET')) {
+      return 'Login indisponível: o servidor está sem JWT_SECRET. Configure essa variável de ambiente e reinicie o serviço.';
+    }
+
+    return apiError;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -54,7 +62,7 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
 
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Falha no login.');
+        setError(getFriendlyApiError(data.error || 'Falha no login.', data.code));
         return;
       }
 

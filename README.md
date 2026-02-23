@@ -88,6 +88,31 @@ Header:
 Authorization: Bearer <token>
 ```
 
+
+## Como validar se o usuário foi salvo no banco
+
+Depois de concluir o cadastro com mensagem de sucesso, você pode validar de três formas:
+
+1. **Checagem direta no Postgres (mais confiável)**
+   ```sql
+   SELECT id, email, created_at
+   FROM users
+   WHERE email = '<seu-email>'
+   ORDER BY created_at DESC
+   LIMIT 5;
+   ```
+
+2. **Pelo endpoint de login (valida leitura + senha)**
+   ```bash
+   curl -X POST "http://localhost:8888/.netlify/functions/auth-login" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"<seu-email>","password":"<sua-senha>"}'
+   ```
+   Se estiver tudo certo, retorna `{ "token": "..." }`.
+
+3. **Pelo endpoint de registro para o mesmo e-mail**
+   Tentar registrar novamente o mesmo e-mail deve retornar `Email already registered` (HTTP 409).
+
 ## Frontend
 
 - Tela de login/cadastro real conectada às Functions.
@@ -107,6 +132,21 @@ Authorization: Bearer <token>
    npm run dev
    ```
 4. Para testar Functions localmente, prefira `netlify dev` se estiver usando Netlify CLI.
+
+
+## Troubleshooting de login
+
+Se aparecer erro relacionado a `JWT_SECRET` no login:
+
+- O cadastro pode funcionar e gravar no banco, mas o login falha porque o backend não consegue gerar o token JWT.
+- Configure `JWT_SECRET` no ambiente (Netlify ou `.env` local) com uma string longa e aleatória.
+- Reinicie o processo de desenvolvimento/deploy após configurar a variável.
+
+Exemplo de geração de segredo local:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
 
 ## Checklist de teste manual
 
