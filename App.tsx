@@ -310,15 +310,29 @@ const App: React.FC = () => {
     useEffect(() => { localStorage.setItem('majorGoals', JSON.stringify(majorGoals)); }, [majorGoals]);
 
 
-    const apiTaskToClientTask = useCallback((apiTask: { id: string; title: string; done: boolean; created_at: string }): Task => ({
+    const apiTaskToClientTask = useCallback((apiTask: {
+        id: string;
+        title: string;
+        description?: string | null;
+        category_id?: string | null;
+        due_date?: string | null;
+        priority?: Priority | null;
+        is_habit?: boolean | null;
+        checklist?: Subtask[] | null;
+        done: boolean;
+        completed_at?: string | null;
+        created_at: string;
+    }): Task => ({
         id: apiTask.id,
         text: apiTask.title,
-        categoryId: UNCATEGORIZED_ID,
+        categoryId: apiTask.category_id || UNCATEGORIZED_ID,
         completed: apiTask.done,
-        isHabit: false,
-        checklist: [],
-        completedAt: apiTask.done ? apiTask.created_at : undefined,
-        priority: Priority.None,
+        isHabit: Boolean(apiTask.is_habit),
+        checklist: Array.isArray(apiTask.checklist) ? apiTask.checklist : [],
+        completedAt: apiTask.completed_at || (apiTask.done ? apiTask.created_at : undefined),
+        priority: apiTask.priority || Priority.None,
+        dueDate: apiTask.due_date || undefined,
+        description: apiTask.description || undefined,
     }), []);
 
     const fetchTasksFromApi = useCallback(async (token: string) => {
@@ -378,16 +392,14 @@ const App: React.FC = () => {
     const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
     
     // Mock de conexão com Google
-    const [isGoogleCalendarAuthorized, setIsGoogleCalendarAuthorized] = useState(false);
+    const [isGoogleCalendarAuthorized] = useState(false);
     const handleConnectGoogleCalendar = () => {
-        alert("A conexão com o Google Agenda será implementada aqui. Por agora, vamos simular a autorização.");
-        setIsGoogleCalendarAuthorized(true);
+        alert("A integração com o Google Agenda ainda não está disponível.");
     };
 
-    const [isGoogleTasksAuthorized, setIsGoogleTasksAuthorized] = useState(false);
+    const [isGoogleTasksAuthorized] = useState(false);
     const handleConnectGoogleTasks = () => {
-        alert("A conexão com o Tarefas do Google será implementada aqui. Por agora, vamos simular a autorização.");
-        setIsGoogleTasksAuthorized(true);
+        alert("A integração com o Google Tarefas ainda não está disponível.");
     };
 
     const handleViewChange = useCallback((view: View, categoryId: string | null = null) => {
@@ -525,7 +537,15 @@ const App: React.FC = () => {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${authToken}`,
             },
-            body: JSON.stringify({ title: newTaskText.trim() }),
+            body: JSON.stringify({
+                title: newTaskText.trim(),
+                description: newTaskDescription.trim() || null,
+                categoryId: newTaskCategory,
+                dueDate: newTaskDueDate || null,
+                priority: newTaskIsHabit ? Priority.None : newTaskPriority,
+                isHabit: newTaskIsHabit,
+                checklist: [],
+            }),
         });
 
         if (!response.ok) {
