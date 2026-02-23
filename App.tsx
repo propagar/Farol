@@ -18,6 +18,38 @@ import { GoogleGenAI, FunctionDeclaration, Type, Content } from '@google/genai';
 
 const UNCATEGORIZED_ID = '0';
 
+const DEFAULT_CATEGORIES: Category[] = [
+    { id: UNCATEGORIZED_ID, name: 'Sem Categoria', color: 'bg-slate-500' },
+];
+
+const DEFAULT_ACCOUNT_INFO: AccountInfo = {
+    fullName: '',
+    email: '',
+    phone: '',
+    address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' },
+    cpf: '',
+    profession: '',
+    lifeSummary: '',
+    socialLinks: { instagram: '', facebook: '', website: '' },
+    profilePicture: '',
+};
+
+const decodeAuthToken = (token: string | null): { userId?: string; email?: string } => {
+    if (!token) return {};
+    try {
+        const [, payloadBase64] = token.split('.');
+        if (!payloadBase64) return {};
+
+        const payload = JSON.parse(atob(payloadBase64));
+        return {
+            userId: payload?.user_id,
+            email: payload?.email,
+        };
+    } catch {
+        return {};
+    }
+};
+
 const App: React.FC = () => {
     const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('authToken'));
     const isAuthenticated = Boolean(authToken);
@@ -27,40 +59,13 @@ const App: React.FC = () => {
 
     const [completedTasks, setCompletedTasks] = useState<Task[]>([]);
 
-    const [categories, setCategories] = useState<Category[]>(() => {
-        const savedCategories = localStorage.getItem('categories');
-        if (savedCategories) {
-            const parsed = JSON.parse(savedCategories);
-            if (!parsed.find((c: Category) => c.id === UNCATEGORIZED_ID)) {
-                return [{ id: UNCATEGORIZED_ID, name: 'Sem Categoria', color: 'bg-slate-500' }, ...parsed];
-            }
-            return parsed;
-        }
-        return [
-            { id: UNCATEGORIZED_ID, name: 'Sem Categoria', color: 'bg-slate-500' },
-            { id: '1', name: 'Trabalho', color: 'bg-sky-500' },
-            { id: '2', name: 'Estudo', color: 'bg-amber-500' },
-            { id: '3', name: 'Espiritualidade', color: 'bg-violet-500' },
-            { id: '4', name: 'Saúde', color: 'bg-emerald-500' },
-            { id: '5', name: 'Leitura', color: 'bg-rose-500' },
-            { id: '6', name: 'Vida Pessoal', color: 'bg-pink-500' },
-        ];
-    });
+    const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
 
-    const [majorGoals, setMajorGoals] = useState<MajorGoal[]>(() => {
-        const savedMajorGoals = localStorage.getItem('majorGoals');
-        return savedMajorGoals ? JSON.parse(savedMajorGoals) : [];
-    });
+    const [majorGoals, setMajorGoals] = useState<MajorGoal[]>([]);
 
-    const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoal[]>(() => {
-        const savedGoals = localStorage.getItem('weeklyGoals');
-        return savedGoals ? JSON.parse(savedGoals) : [];
-    });
+    const [weeklyGoals, setWeeklyGoals] = useState<WeeklyGoal[]>([]);
     
-    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
-        const saved = localStorage.getItem('calendarEvents');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
     const [theme, setTheme] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -75,69 +80,36 @@ const App: React.FC = () => {
     const [appColor, setAppColor] = useState<string>(() => localStorage.getItem('appColor') || 'indigo');
     const [assistantName, setAssistantName] = useState<string>(() => localStorage.getItem('assistantName') || 'Assistente Pessoal');
     const [assistantInstruction, setAssistantInstruction] = useState<string>(() => localStorage.getItem('assistantInstruction') || 'Você é um assistente prestativo, amigável e conciso.');
-    const [accountInfo, setAccountInfo] = useState<AccountInfo>(() => {
-        const saved = localStorage.getItem('accountInfo');
-        return saved ? JSON.parse(saved) : {
-            fullName: 'Usuário',
-            email: '',
-            phone: '',
-            address: { street: '', number: '', complement: '', neighborhood: '', city: '', state: '', zipCode: '' },
-            cpf: '',
-            profession: '',
-            lifeSummary: '',
-            socialLinks: { instagram: '', facebook: '', website: '' },
-            profilePicture: '',
-        };
-    });
+    const [accountInfo, setAccountInfo] = useState<AccountInfo>(DEFAULT_ACCOUNT_INFO);
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Estados para o Farol Finance
-    const [profiles, setProfiles] = useState<Profile[]>(() => {
-        const saved = localStorage.getItem('financeProfiles');
-        return saved ? JSON.parse(saved) : [{ id: 'p1', name: 'Perfil Principal', type: 'CPF' }];
-    });
+    const [profiles, setProfiles] = useState<Profile[]>([{ id: 'p1', name: 'Perfil Principal', type: 'CPF' }]);
     
-    const [transactions, setTransactions] = useState<Transaction[]>(() => {
-        const saved = localStorage.getItem('financeTransactions');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     
-    const [purchases, setPurchases] = useState<Purchase[]>(() => {
-        const saved = localStorage.getItem('purchases');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [purchases, setPurchases] = useState<Purchase[]>([]);
 
-    const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
-        const saved = localStorage.getItem('financeBankAccounts');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
 
-    const [spendingGoals, setSpendingGoals] = useState<SpendingGoal[]>(() => {
-        const saved = localStorage.getItem('spendingGoals');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [spendingGoals, setSpendingGoals] = useState<SpendingGoal[]>([]);
 
-    const [earningGoals, setEarningGoals] = useState<EarningGoal[]>(() => {
-        const saved = localStorage.getItem('earningGoals');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [earningGoals, setEarningGoals] = useState<EarningGoal[]>([]);
     
-    const [investmentFunds, setInvestmentFunds] = useState<InvestmentFund[]>(() => {
-        const saved = localStorage.getItem('investmentFunds');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [investmentFunds, setInvestmentFunds] = useState<InvestmentFund[]>([]);
 
-    const [investments, setInvestments] = useState<Investment[]>(() => {
-        const saved = localStorage.getItem('investments');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [investments, setInvestments] = useState<Investment[]>([]);
     
-    const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>(() => {
-        const saved = localStorage.getItem('recurringExpenses');
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+
+    const authenticatedUser = useMemo(() => decodeAuthToken(authToken), [authToken]);
+    const userStoragePrefix = authenticatedUser.userId || authenticatedUser.email || null;
+    const getUserStorageKey = useCallback((key: string) => {
+        if (!userStoragePrefix) return null;
+        return `${userStoragePrefix}:${key}`;
+    }, [userStoragePrefix]);
 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [isAiLoading, setIsAiLoading] = useState(false);
@@ -148,18 +120,75 @@ const App: React.FC = () => {
     useEffect(() => { localStorage.setItem('appColor', appColor); }, [appColor]);
     useEffect(() => { localStorage.setItem('assistantName', assistantName); }, [assistantName]);
     useEffect(() => { localStorage.setItem('assistantInstruction', assistantInstruction); }, [assistantInstruction]);
-    useEffect(() => { localStorage.setItem('accountInfo', JSON.stringify(accountInfo)); }, [accountInfo]);
-    useEffect(() => { localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents)); }, [calendarEvents]);
+    useEffect(() => {
+        const getArray = <T,>(key: string, fallback: T[]): T[] => {
+            const storageKey = getUserStorageKey(key);
+            if (!storageKey) return fallback;
+            const saved = localStorage.getItem(storageKey);
+            return saved ? JSON.parse(saved) : fallback;
+        };
 
-    useEffect(() => { localStorage.setItem('financeProfiles', JSON.stringify(profiles)); }, [profiles]);
-    useEffect(() => { localStorage.setItem('financeTransactions', JSON.stringify(transactions)); }, [transactions]);
-    useEffect(() => { localStorage.setItem('financeBankAccounts', JSON.stringify(bankAccounts)); }, [bankAccounts]);
-    useEffect(() => { localStorage.setItem('purchases', JSON.stringify(purchases)); }, [purchases]);
-    useEffect(() => { localStorage.setItem('spendingGoals', JSON.stringify(spendingGoals)); }, [spendingGoals]);
-    useEffect(() => { localStorage.setItem('earningGoals', JSON.stringify(earningGoals)); }, [earningGoals]);
-    useEffect(() => { localStorage.setItem('investmentFunds', JSON.stringify(investmentFunds)); }, [investmentFunds]);
-    useEffect(() => { localStorage.setItem('investments', JSON.stringify(investments)); }, [investments]);
-    useEffect(() => { localStorage.setItem('recurringExpenses', JSON.stringify(recurringExpenses)); }, [recurringExpenses]);
+        const categoriesData = getArray<Category>('categories', DEFAULT_CATEGORIES);
+        setCategories(categoriesData.find((c: Category) => c.id === UNCATEGORIZED_ID)
+            ? categoriesData
+            : [DEFAULT_CATEGORIES[0], ...categoriesData]);
+        setMajorGoals(getArray<MajorGoal>('majorGoals', []));
+        setWeeklyGoals(getArray<WeeklyGoal>('weeklyGoals', []));
+        setCalendarEvents(getArray<CalendarEvent>('calendarEvents', []));
+        setProfiles(getArray<Profile>('financeProfiles', [{ id: 'p1', name: 'Perfil Principal', type: 'CPF' }]));
+        setTransactions(getArray<Transaction>('financeTransactions', []));
+        setBankAccounts(getArray<BankAccount>('financeBankAccounts', []));
+        setPurchases(getArray<Purchase>('purchases', []));
+        setSpendingGoals(getArray<SpendingGoal>('spendingGoals', []));
+        setEarningGoals(getArray<EarningGoal>('earningGoals', []));
+        setInvestmentFunds(getArray<InvestmentFund>('investmentFunds', []));
+        setInvestments(getArray<Investment>('investments', []));
+        setRecurringExpenses(getArray<RecurringExpense>('recurringExpenses', []));
+
+        const accountInfoKey = getUserStorageKey('accountInfo');
+        const savedAccountInfo = accountInfoKey ? localStorage.getItem(accountInfoKey) : null;
+        const initialAccountInfo = savedAccountInfo ? JSON.parse(savedAccountInfo) : DEFAULT_ACCOUNT_INFO;
+        setAccountInfo({ ...DEFAULT_ACCOUNT_INFO, ...initialAccountInfo, email: initialAccountInfo.email || authenticatedUser.email || '' });
+    }, [authenticatedUser.email, getUserStorageKey]);
+
+    useEffect(() => {
+        const setUserData = (key: string, value: unknown) => {
+            const storageKey = getUserStorageKey(key);
+            if (!storageKey) return;
+            localStorage.setItem(storageKey, JSON.stringify(value));
+        };
+
+        setUserData('accountInfo', accountInfo);
+        setUserData('calendarEvents', calendarEvents);
+        setUserData('categories', categories);
+        setUserData('financeProfiles', profiles);
+        setUserData('financeTransactions', transactions);
+        setUserData('financeBankAccounts', bankAccounts);
+        setUserData('purchases', purchases);
+        setUserData('spendingGoals', spendingGoals);
+        setUserData('earningGoals', earningGoals);
+        setUserData('investmentFunds', investmentFunds);
+        setUserData('investments', investments);
+        setUserData('recurringExpenses', recurringExpenses);
+        setUserData('majorGoals', majorGoals);
+        setUserData('weeklyGoals', weeklyGoals);
+    }, [
+        accountInfo,
+        bankAccounts,
+        calendarEvents,
+        categories,
+        earningGoals,
+        getUserStorageKey,
+        investmentFunds,
+        investments,
+        majorGoals,
+        profiles,
+        purchases,
+        recurringExpenses,
+        spendingGoals,
+        transactions,
+        weeklyGoals,
+    ]);
 
     const handleAddProfile = (name: string, type: 'CPF' | 'CNPJ') => {
         const newProfile: Profile = { id: `p${Date.now()}`, name, type };
@@ -305,7 +334,6 @@ const App: React.FC = () => {
 
     const handleThemeToggle = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-    useEffect(() => { localStorage.setItem('categories', JSON.stringify(categories)); }, [categories]);
     useEffect(() => { localStorage.setItem('weeklyGoals', JSON.stringify(weeklyGoals)); }, [weeklyGoals]);
     useEffect(() => { localStorage.setItem('majorGoals', JSON.stringify(majorGoals)); }, [majorGoals]);
 
