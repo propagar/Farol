@@ -37,6 +37,11 @@ export interface Category {
 export interface MajorGoal {
   id: string;
   text: string;
+  targetValue?: number;
+  currentValue?: number;
+  unit?: string;
+  linkedHabitId?: string;
+  habitIncrement?: number;
 }
 
 export interface WeeklyGoal {

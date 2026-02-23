@@ -387,6 +387,11 @@ const App: React.FC = () => {
 
     const [isMajorGoalModalOpen, setMajorGoalModalOpen] = useState(false);
     const [newMajorGoalText, setNewMajorGoalText] = useState('');
+    const [newMajorGoalTarget, setNewMajorGoalTarget] = useState('');
+    const [newMajorGoalUnit, setNewMajorGoalUnit] = useState('km');
+    const [autoCreateHabitForMajorGoal, setAutoCreateHabitForMajorGoal] = useState(false);
+    const [newMajorGoalHabitText, setNewMajorGoalHabitText] = useState('');
+    const [newMajorGoalHabitIncrement, setNewMajorGoalHabitIncrement] = useState('');
 
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
@@ -418,6 +423,22 @@ const App: React.FC = () => {
         setCategoryModalOpen(true);
     };
 
+    const updateMajorGoalProgressFromHabit = useCallback((habitTaskId: string, direction: 1 | -1) => {
+        setMajorGoals(prev => prev.map(goal => {
+            if (goal.linkedHabitId !== habitTaskId) return goal;
+            const increment = goal.habitIncrement ?? 0;
+            if (increment <= 0) return goal;
+
+            const currentValue = goal.currentValue ?? 0;
+            const nextValue = currentValue + (increment * direction);
+
+            return {
+                ...goal,
+                currentValue: Math.max(0, Number(nextValue.toFixed(2))),
+            };
+        }));
+    }, []);
+
     const handleToggleTask = async (taskId: string) => {
         if (!authToken) return;
 
@@ -445,6 +466,9 @@ const App: React.FC = () => {
             const taskToComplete = { ...activeTask, completed: true, completedAt: new Date().toISOString() };
             setTasks(tasks.filter(t => t.id !== taskId));
             setCompletedTasks(prev => [taskToComplete, ...prev]);
+            if (activeTask.isHabit) {
+                updateMajorGoalProgressFromHabit(activeTask.id, 1);
+            }
             return;
         }
 
@@ -453,6 +477,9 @@ const App: React.FC = () => {
             delete taskToReactivate.completedAt;
             setCompletedTasks(completedTasks.filter(t => t.id !== taskId));
             setTasks(prev => [...prev, taskToReactivate]);
+            if (completedTask.isHabit) {
+                updateMajorGoalProgressFromHabit(completedTask.id, -1);
+            }
         }
     };
 
@@ -603,11 +630,79 @@ const App: React.FC = () => {
     
     const handleReorderCategories = (reorderedCategories: Category[]) => setCategories(reorderedCategories);
 
-    const handleAddMajorGoal = () => {
+    const handleAddMajorGoal = async () => {
         if (!newMajorGoalText.trim()) return;
-        const newMajorGoal: MajorGoal = { id: Date.now().toString(), text: newMajorGoalText };
-        setMajorGoals([...majorGoals, newMajorGoal]);
+
+        const parsedTarget = Number(newMajorGoalTarget);
+        const targetValue = Number.isFinite(parsedTarget) && parsedTarget > 0 ? parsedTarget : undefined;
+
+        const parsedHabitIncrement = Number(newMajorGoalHabitIncrement);
+        const habitIncrement = Number.isFinite(parsedHabitIncrement) && parsedHabitIncrement > 0 ? parsedHabitIncrement : undefined;
+
+        let linkedHabitId: string | undefined;
+        if (autoCreateHabitForMajorGoal && newMajorGoalHabitText.trim() && authToken) {
+            const healthCategory = categories.find(c => c.name.toLowerCase() === 'saúde');
+            const response = await fetch('/.netlify/functions/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({
+                    title: newMajorGoalHabitText.trim(),
+                    description: null,
+                    categoryId: healthCategory?.id || UNCATEGORIZED_ID,
+                    dueDate: null,
+                    priority: Priority.None,
+                    isHabit: true,
+                    checklist: [],
+                }),
+            });
+
+            if (!response.ok) {
+                alert('Não foi possível criar o hábito automático para a meta maior.');
+                return;
+            }
+
+            const data = await response.json();
+            const createdHabitTask: Task = {
+                ...apiTaskToClientTask(data.task),
+                categoryId: healthCategory?.id || UNCATEGORIZED_ID,
+                isHabit: true,
+                priority: Priority.None,
+            };
+            setTasks(prev => [createdHabitTask, ...prev]);
+            linkedHabitId = createdHabitTask.id;
+        }
+
+        const newMajorGoal: MajorGoal = {
+            id: Date.now().toString(),
+            text: newMajorGoalText.trim(),
+            targetValue,
+            currentValue: 0,
+            unit: newMajorGoalUnit.trim() || undefined,
+            linkedHabitId,
+            habitIncrement,
+        };
+
+        setMajorGoals(prev => [...prev, newMajorGoal]);
+
+        if (linkedHabitId && habitIncrement) {
+            const weeklyHabitGoal: WeeklyGoal = {
+                id: `${Date.now()}-weekly`,
+                text: `Cumprir ${(habitIncrement * 7).toLocaleString('pt-BR')} ${newMajorGoalUnit || ''} por semana (${newMajorGoalHabitText.trim()})`.trim(),
+                completed: false,
+                majorGoalId: newMajorGoal.id,
+            };
+            setWeeklyGoals(prev => [...prev, weeklyHabitGoal]);
+        }
+
         setNewMajorGoalText('');
+        setNewMajorGoalTarget('');
+        setNewMajorGoalUnit('km');
+        setAutoCreateHabitForMajorGoal(false);
+        setNewMajorGoalHabitText('');
+        setNewMajorGoalHabitIncrement('');
         setMajorGoalModalOpen(false);
     };
 
@@ -1607,13 +1702,22 @@ const App: React.FC = () => {
                             {majorGoals.map(majorGoal => {
                                 const relatedGoals = weeklyGoals.filter(wg => wg.majorGoalId === majorGoal.id);
                                 const completedGoals = relatedGoals.filter(wg => wg.completed).length;
-                                const progress = relatedGoals.length > 0 ? (completedGoals / relatedGoals.length) * 100 : 0;
+                                const hasNumericTarget = Boolean(majorGoal.targetValue && majorGoal.targetValue > 0);
+                                const progress = hasNumericTarget
+                                    ? Math.min(100, ((majorGoal.currentValue || 0) / (majorGoal.targetValue || 1)) * 100)
+                                    : (relatedGoals.length > 0 ? (completedGoals / relatedGoals.length) * 100 : 0);
                                 return (
                                     <div key={majorGoal.id} className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-lg shadow-sm">
                                         <div className="flex justify-between items-start mb-3">
                                             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">{majorGoal.text}</h3>
                                             <button onClick={() => handleDeleteMajorGoal(majorGoal.id)} className="text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"> <TrashIcon /> </button>
                                         </div>
+                                        {hasNumericTarget && (
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">
+                                                {(majorGoal.currentValue || 0).toLocaleString('pt-BR')} {majorGoal.unit || ''} de {(majorGoal.targetValue || 0).toLocaleString('pt-BR')} {majorGoal.unit || ''}
+                                                {majorGoal.habitIncrement ? ` • +${majorGoal.habitIncrement.toLocaleString('pt-BR')} ${majorGoal.unit || ''} por hábito concluído` : ''}
+                                            </p>
+                                        )}
                                         <ProgressBar progress={progress} appColor={appColor} />
                                         <div className="space-y-3 mt-4">
                                             {relatedGoals.map(goal => (
@@ -1786,7 +1890,37 @@ const App: React.FC = () => {
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="major-goal-text" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Nome da Meta</label>
-                        <input type="text" id="major-goal-text" value={newMajorGoalText} onChange={e => setNewMajorGoalText(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: Aprender uma nova habilidade" />
+                        <input type="text" id="major-goal-text" value={newMajorGoalText} onChange={e => setNewMajorGoalText(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: Correr 1000 km" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="major-goal-target" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Meta total (opcional)</label>
+                            <input type="number" min="0" step="0.1" id="major-goal-target" value={newMajorGoalTarget} onChange={e => setNewMajorGoalTarget(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: 1000" />
+                        </div>
+                        <div>
+                            <label htmlFor="major-goal-unit" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Unidade</label>
+                            <input type="text" id="major-goal-unit" value={newMajorGoalUnit} onChange={e => setNewMajorGoalUnit(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: km" />
+                        </div>
+                    </div>
+
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                            <input type="checkbox" checked={autoCreateHabitForMajorGoal} onChange={e => setAutoCreateHabitForMajorGoal(e.target.checked)} className={`h-4 w-4 rounded border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-${appColor}-600 focus:ring-${appColor}-500`} />
+                            Criar hábito diário automático para evoluir esta meta
+                        </label>
+
+                        {autoCreateHabitForMajorGoal && (
+                            <div className="mt-4 space-y-4">
+                                <div>
+                                    <label htmlFor="major-goal-habit-text" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Nome do hábito</label>
+                                    <input type="text" id="major-goal-habit-text" value={newMajorGoalHabitText} onChange={e => setNewMajorGoalHabitText(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: Correr 4 km" />
+                                </div>
+                                <div>
+                                    <label htmlFor="major-goal-habit-increment" className="block text-sm font-medium text-gray-700 dark:text-slate-300">Quanto essa conclusão soma na meta?</label>
+                                    <input type="number" min="0" step="0.1" id="major-goal-habit-increment" value={newMajorGoalHabitIncrement} onChange={e => setNewMajorGoalHabitIncrement(e.target.value)} className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`} placeholder="Ex: 4" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
                  <div className="mt-5 sm:mt-6">
