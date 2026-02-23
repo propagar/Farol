@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
-import { getPool } from './_lib/db.js';
+import { randomUUID } from 'node:crypto';
+import { ensureAuthSchema, getPool } from './_lib/db.js';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
 
@@ -36,7 +37,8 @@ export const handler = async (event) => {
   const pool = getPool();
 
   try {
-    await pool.query('INSERT INTO users(email, password_hash) VALUES ($1, $2)', [email, passwordHash]);
+    await ensureAuthSchema();
+    await pool.query('INSERT INTO users(id, email, password_hash) VALUES ($1, $2, $3)', [randomUUID(), email, passwordHash]);
     return { statusCode: 201, headers: jsonHeaders, body: JSON.stringify({ ok: true }) };
   } catch (error) {
     if (error.code === '23505') {
