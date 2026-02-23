@@ -20,6 +20,7 @@ const UNCATEGORIZED_ID = '0';
 
 const App: React.FC = () => {
     const [authToken, setAuthToken] = useState<string | null>(() => localStorage.getItem('authToken'));
+    const [authWarning, setAuthWarning] = useState('');
     const isAuthenticated = Boolean(authToken);
 
     // Estados existentes...
@@ -328,7 +329,8 @@ const App: React.FC = () => {
         });
 
         if (!response.ok) {
-            throw new Error('Não foi possível carregar tarefas.');
+            const shouldLogout = response.status === 401 || response.status === 403;
+            throw new Error(shouldLogout ? 'AUTH_INVALID' : 'TASKS_UNAVAILABLE');
         }
 
         const data = await response.json();
@@ -341,14 +343,26 @@ const App: React.FC = () => {
         if (!authToken) {
             setTasks([]);
             setCompletedTasks([]);
+            setAuthWarning('');
             return;
         }
 
-        fetchTasksFromApi(authToken).catch(() => {
-            setAuthToken(null);
-            localStorage.removeItem('authToken');
-            window.history.replaceState({}, '', '/login');
-        });
+        fetchTasksFromApi(authToken)
+            .then(() => {
+                setAuthWarning('');
+            })
+            .catch((error: Error) => {
+                if (error.message === 'AUTH_INVALID') {
+                    setAuthToken(null);
+                    localStorage.removeItem('authToken');
+                    window.history.replaceState({}, '', '/login');
+                    return;
+                }
+
+                setTasks([]);
+                setCompletedTasks([]);
+                setAuthWarning('Você entrou com sucesso, mas não foi possível carregar suas tarefas agora.');
+            });
     }, [authToken, fetchTasksFromApi]);
 
     const [currentView, setCurrentView] = useState<View>(View.Today);
@@ -1465,12 +1479,14 @@ const App: React.FC = () => {
     const handleLoginSuccess = (token: string) => {
         localStorage.setItem('authToken', token);
         setAuthToken(token);
+        setAuthWarning('');
         window.history.replaceState({}, '', '/');
     };
 
     const handleLogout = () => {
         localStorage.removeItem('authToken');
         setAuthToken(null);
+        setAuthWarning('');
         window.history.replaceState({}, '', '/login');
     };
 
@@ -1683,6 +1699,11 @@ const App: React.FC = () => {
                 {currentView === View.Settings && <Header title="Configurações" onAddTask={() => {}} theme={theme} onThemeToggle={handleThemeToggle} onToggleMobileMenu={() => setIsMobileMenuOpen(true)} currentView={currentView} priorityFilter='Todas' onPriorityFilterChange={() => {}} appColor={appColor} /> }
                 
                 <div className={ ![View.Finance].includes(currentView) ? "p-4 sm:p-6 lg:p-8" : ""}>
+                    {authWarning && (
+                        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+                            {authWarning}
+                        </div>
+                    )}
                     {renderContent()}
                 </div>
             </main>
