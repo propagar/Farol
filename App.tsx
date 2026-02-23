@@ -1520,7 +1520,12 @@ const App: React.FC = () => {
 
         switch (currentView) {
             case View.Today:
-                baseTasks = tasks.filter(task => !task.isHabit && (task.dueDate === today || !task.dueDate));
+                baseTasks = tasks.filter(task => {
+                    if (task.isHabit) {
+                        return true;
+                    }
+                    return task.dueDate === today || !task.dueDate;
+                });
                 break;
 // fix: Replaced View.Routine with View.Habits as 'Routine' does not exist in the enum.
             case View.Habits:
@@ -1539,6 +1544,22 @@ const App: React.FC = () => {
         }
         return baseTasks.filter(task => (task.priority || Priority.None) === priorityFilter);
     }, [tasks, currentView, selectedCategoryId, priorityFilter]);
+
+    const filteredCompletedHabits = useMemo(() => {
+        if (currentView !== View.Habits) {
+            return [];
+        }
+
+        return completedTasks.filter(task => task.isHabit);
+    }, [completedTasks, currentView]);
+
+    const displayedTasks = useMemo(() => {
+        if (currentView !== View.Habits) {
+            return filteredTasks;
+        }
+
+        return [...filteredTasks, ...filteredCompletedHabits];
+    }, [currentView, filteredTasks, filteredCompletedHabits]);
 
     const unassignedWeeklyGoals = useMemo(() => weeklyGoals.filter(g => !g.majorGoalId), [weeklyGoals]);
     
@@ -1760,7 +1781,7 @@ const App: React.FC = () => {
                 return (
                     <>
                         <div className="space-y-4">
-                            {filteredTasks.length > 0 ? filteredTasks.map(task => (
+                            {displayedTasks.length > 0 ? displayedTasks.map(task => (
                                 <TaskItem key={task.id} task={task} category={categories.find(c => c.id === task.categoryId)} categories={categories} onToggle={handleToggleTask} onDelete={handleDeleteTask} onToggleSubtask={handleToggleSubtask} onAddSubtask={handleAddSubtask} onAddMultipleSubtasks={handleAddMultipleSubtasks} onUpdateDueDate={handleUpdateTaskDueDate} onUpdateCategory={handleUpdateTaskCategory} onUpdatePriority={handleUpdateTaskPriority} onUpdateDescription={handleUpdateTaskDescription} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd} isBeingDraggedOver={dragOverTaskId === task.id} appColor={appColor} />
                             )) : (
                                 <div className="text-center py-10 px-6 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
