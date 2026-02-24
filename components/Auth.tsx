@@ -33,6 +33,15 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [cep, setCep] = useState('');
+  const [city, setCity] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [street, setStreet] = useState('');
+  const [houseNumber, setHouseNumber] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [country, setCountry] = useState('Brasil');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
@@ -90,7 +99,21 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
       const response = await fetch('/.netlify/functions/auth-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          fullName,
+          whatsapp,
+          address: {
+            cep,
+            city,
+            neighborhood,
+            street,
+            number: houseNumber,
+            state: stateName,
+            country,
+          },
+        }),
       });
 
       const data = await response.json();
@@ -102,6 +125,15 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
       setSuccessMessage('Cadastro realizado! Faça login para continuar.');
       setPassword('');
       setConfirmPassword('');
+      setFullName('');
+      setWhatsapp('');
+      setCep('');
+      setCity('');
+      setNeighborhood('');
+      setStreet('');
+      setHouseNumber('');
+      setStateName('');
+      setCountry('Brasil');
       setIsRegistering(false);
     } catch {
       setError('Falha ao conectar com o servidor.');
@@ -127,6 +159,19 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
       <AuthFormWrapper title="Criar Conta" appColor={appColor}>
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
+            <label htmlFor="reg-full-name" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+              Nome completo
+            </label>
+            <input
+              type="text"
+              id="reg-full-name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+            />
+          </div>
+          <div>
             <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
               E-mail
             </label>
@@ -138,6 +183,80 @@ const Auth: React.FC<AuthProps> = ({ onLoginSuccess, appColor }) => {
               required
               className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
             />
+          </div>
+          <div>
+            <label htmlFor="reg-whatsapp" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
+              WhatsApp
+            </label>
+            <input
+              type="tel"
+              id="reg-whatsapp"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              required
+              className={`mt-1 block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+            />
+          </div>
+          <div>
+            <p className="block text-sm font-medium text-gray-700 dark:text-slate-300">Endereço completo</p>
+            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <input
+                type="text"
+                placeholder="CEP"
+                value={cep}
+                onChange={(e) => setCep(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="Cidade"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="Bairro"
+                value={neighborhood}
+                onChange={(e) => setNeighborhood(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="Rua"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="Número"
+                value={houseNumber}
+                onChange={(e) => setHouseNumber(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="Estado"
+                value={stateName}
+                onChange={(e) => setStateName(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2`}
+              />
+              <input
+                type="text"
+                placeholder="País"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                required
+                className={`block w-full rounded-md border-gray-300 bg-white dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-400 dark:text-white shadow-sm focus:border-${appColor}-500 focus:ring-${appColor}-500 sm:text-sm p-2 sm:col-span-2`}
+              />
+            </div>
           </div>
           <div>
             <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 dark:text-slate-300">

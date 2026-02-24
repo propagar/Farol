@@ -33,9 +33,27 @@ export const ensureAuthSchema = async () => {
           id UUID PRIMARY KEY,
           email TEXT NOT NULL UNIQUE,
           password_hash TEXT NOT NULL,
+          full_name TEXT,
+          whatsapp TEXT,
+          address_cep TEXT,
+          address_city TEXT,
+          address_neighborhood TEXT,
+          address_street TEXT,
+          address_number TEXT,
+          address_state TEXT,
+          address_country TEXT,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )
       `);
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_cep TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_city TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_neighborhood TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_street TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_number TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_state TEXT');
+      await dbPool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS address_country TEXT');
       await dbPool.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
     })().catch((error) => {
       authSchemaPromise = undefined;
