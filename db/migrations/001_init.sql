@@ -9,6 +9,15 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
+  full_name TEXT,
+  whatsapp TEXT,
+  address_cep TEXT,
+  address_city TEXT,
+  address_neighborhood TEXT,
+  address_street TEXT,
+  address_number TEXT,
+  address_state TEXT,
+  address_country TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
